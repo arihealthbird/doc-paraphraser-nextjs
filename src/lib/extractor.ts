@@ -1,11 +1,7 @@
 import mammoth from 'mammoth';
 import { ExtractedDocument } from './types';
-
-// Dynamic import for pdf-parse (CommonJS module)
-const getPdfParse = async () => {
-  const pdfParse = await import('pdf-parse/lib/pdf-parse.js');
-  return pdfParse.default;
-};
+// @ts-ignore - pdf-parse is a CommonJS module
+const pdfParse = require('pdf-parse');
 
 export class DocumentExtractor {
   async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
@@ -22,8 +18,7 @@ export class DocumentExtractor {
   }
 
   private async extractFromPDF(buffer: Buffer): Promise<ExtractedDocument> {
-    const pdf = await getPdfParse();
-    const data = await pdf(buffer);
+    const data = await pdfParse(buffer);
     
     return {
       text: data.text,
