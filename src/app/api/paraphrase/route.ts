@@ -8,6 +8,15 @@ export const dynamic = 'force-dynamic';
 // Vercel Pro plan: 300s timeout, 50MB body size limit
 export const maxDuration = 300;
 
+// Test endpoint
+export async function GET() {
+  return NextResponse.json({ 
+    message: 'Paraphrase API is running',
+    methods: ['POST'],
+    version: '1.0.0'
+  });
+}
+
 // Handle OPTIONS for CORS
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -21,10 +30,13 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('POST /api/paraphrase called');
   try {
+    console.log('Parsing form data...');
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const configJson = formData.get('config') as string;
+    console.log('File received:', file?.name, 'Size:', file?.size);
 
     if (!file) {
       return new Response(JSON.stringify({ error: 'No file provided' }), {
