@@ -2,6 +2,8 @@
 
 AI-powered document paraphrasing service built with Next.js 14, deployable on Vercel.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/arihealthbird/doc-paraphraser-nextjs)
+
 ## Features
 
 - **Document Support**: PDF, DOCX, and TXT files
