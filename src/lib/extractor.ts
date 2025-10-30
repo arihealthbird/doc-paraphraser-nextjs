@@ -1,6 +1,6 @@
 import mammoth from 'mammoth';
 import { ExtractedDocument } from './types';
-import PDFParser from 'pdf2json';
+import pdfParse from 'pdf-parse';
 
 export class DocumentExtractor {
   async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
@@ -23,47 +23,23 @@ export class DocumentExtractor {
   }
 
   private async extractFromPDF(buffer: Buffer): Promise<ExtractedDocument> {
-    console.log('[Extractor] Starting PDF extraction with pdf2json');
-    return new Promise((resolve, reject) => {
-      const pdfParser = new PDFParser();
+    console.log('[Extractor] Starting PDF extraction with pdf-parse');
+    try {
+      const data = await pdfParse(buffer);
+      const text = data.text;
+      const pageCount = data.numpages;
       
-      pdfParser.on('pdfParser_dataError', (errData: any) => {
-        console.error('[Extractor] PDF parsing error:', errData);
-        reject(new Error(errData.parserError));
-      });
+      console.log(`PDF extracted: ${text.length} chars, ${pageCount} pages`);
       
-      pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
-        // Extract text from all pages
-        let text = '';
-        if (pdfData.Pages) {
-          for (const page of pdfData.Pages) {
-            if (page.Texts) {
-              for (const textItem of page.Texts) {
-                if (textItem.R) {
-                  for (const run of textItem.R) {
-                    if (run.T) {
-                      text += decodeURIComponent(run.T) + ' ';
-                    }
-                  }
-                }
-              }
-            }
-            text += '\n';
-          }
-        }
-        
-        const pageCount = pdfData.Pages?.length || 0;
-        console.log(`PDF extracted: ${text.length} chars, ${pageCount} pages`);
-        
-        resolve({
-          text: text.trim(),
-          pageCount,
-          wordCount: this.countWords(text),
-        });
-      });
-      
-      pdfParser.parseBuffer(buffer);
-    });
+      return {
+        text: text.trim(),
+        pageCount,
+        wordCount: this.countWords(text),
+      };
+    } catch (error: any) {
+      console.error('[Extractor] PDF parsing error:', error);
+      throw new Error(`PDF parsing failed: ${error.message}`);
+    }
   }
 
   private async extractFromDOCX(buffer: Buffer): Promise<ExtractedDocument> {
