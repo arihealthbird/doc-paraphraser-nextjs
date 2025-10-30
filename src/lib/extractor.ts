@@ -1,6 +1,5 @@
 import mammoth from 'mammoth';
 import { ExtractedDocument } from './types';
-const pdfParse = require('pdf-parse');
 
 export class DocumentExtractor {
   async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
@@ -25,6 +24,8 @@ export class DocumentExtractor {
   private async extractFromPDF(buffer: Buffer): Promise<ExtractedDocument> {
     console.log('[Extractor] Starting PDF extraction with pdf-parse');
     try {
+      // Dynamic import for pdf-parse to work with Next.js
+      const pdfParse = (await import('pdf-parse')).default;
       const data = await pdfParse(buffer);
       const text = data.text;
       const pageCount = data.numpages;
