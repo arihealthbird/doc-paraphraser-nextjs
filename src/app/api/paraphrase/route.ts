@@ -83,17 +83,20 @@ export async function POST(request: NextRequest) {
     // Create job
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
-    // Start background processing (don't await)
-    processJobInBackground(job.jobId, extracted.text, config, apiKey).catch(err => {
-      console.error('Failed to start background processing:', err);
-    });
+    // Process synchronously (Vercel serverless doesn't support true background jobs)
+    await processJobInBackground(job.jobId, extracted.text, config, apiKey);
 
-    // Return job ID immediately
+    // Get final result
+    const { result, hallucinationScore } = await dbService.getJobWithResult(job.jobId);
+
+    // Return complete result
     return NextResponse.json({
       jobId: job.jobId,
       documentId: doc.documentId,
       totalChunks,
-      status: 'pending',
+      status: 'completed',
+      result: result,
+      hallucinationScore: hallucinationScore,
     });
   } catch (error: any) {
     console.error('Paraphrase API error:', error);

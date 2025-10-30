@@ -238,13 +238,19 @@ export default function Home() {
       setJobId(data.jobId);
       setTotalChunks(data.totalChunks || 0);
 
-      // Start polling for job status
-      pollIntervalRef.current = setInterval(() => {
+      // Response now contains the complete result (synchronous processing)
+      if (data.status === 'completed') {
+        setResult(data.result || '');
+        setHallucinationScore(data.hallucinationScore ?? null);
+        setProgress(100);
+        setProcessing(false);
+      } else {
+        // Fallback to polling if status is not completed (backward compatibility)
+        pollIntervalRef.current = setInterval(() => {
+          pollJobStatus(data.jobId);
+        }, 2000);
         pollJobStatus(data.jobId);
-      }, 2000); // Poll every 2 seconds
-
-      // Initial poll
-      pollJobStatus(data.jobId);
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
       setProcessing(false);
