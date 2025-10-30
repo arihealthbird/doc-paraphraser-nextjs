@@ -49,8 +49,11 @@ export async function POST(request: NextRequest) {
     const config: ParaphrasingConfig = configJson ? JSON.parse(configJson) : {};
     const apiKey = process.env.OPENROUTER_API_KEY;
 
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+    if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
+      console.error('OPENROUTER_API_KEY not configured properly');
+      return NextResponse.json({ 
+        error: 'OpenRouter API key not configured. Please set OPENROUTER_API_KEY in your environment variables.' 
+      }, { status: 500 });
     }
 
     // Extract file info

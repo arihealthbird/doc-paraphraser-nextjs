@@ -1,0 +1,5 @@
+This is a simple test document for the paraphrasing service.
+
+It contains a few paragraphs of text that can be used to test the upload and processing functionality.
+
+The document paraphraser should be able to handle this basic text file and return a paraphrased version.

@@ -138,10 +138,16 @@ export default function Home() {
     try {
       const response = await fetch(`/api/jobs/${jobId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch job status');
+        throw new Error(`Failed to fetch job status (${response.status})`);
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      if (!text) {
+        console.error('Empty response from job status endpoint');
+        return;
+      }
+
+      const data = JSON.parse(text);
       
       setProgress(data.progress || 0);
       setCurrentChunk(data.currentChunk || 0);
@@ -203,8 +209,19 @@ export default function Home() {
         if (response.status === 413) {
           throw new Error('File too large for server. Maximum is 4MB due to Vercel limits.');
         }
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to process document (${response.status})`);
+        // Try to parse error response, but handle if it's not JSON
+        let errorMessage = `Failed to process document (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // Response wasn't JSON, use the text instead
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage = errorText;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
