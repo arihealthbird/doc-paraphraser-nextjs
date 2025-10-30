@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { ParaphrasingConfig } from '@/lib/types';
+import { EtherealShadow } from '@/components/ui/etheral-shadow';
 
 // Available AI models with descriptions (Latest models available on OpenRouter)
 const AI_MODELS = [
@@ -97,8 +98,166 @@ export default function Home() {
   const [error, setError] = useState<string>('');
   const [jobId, setJobId] = useState<string>('');
   const [hallucinationScore, setHallucinationScore] = useState<number | null>(null);
+  const [showCompletionPopup, setShowCompletionPopup] = useState(false);
+  const [completionMessage, setCompletionMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const funnyMessages = [
+    // Classic celebrations
+    "🎉 Boom! Your document just got a vocabulary upgrade!",
+    "✨ Alakazam! Your text has been magically transformed!",
+    "🚀 Mission accomplished! Your words are now in disguise!",
+    "🎨 Chef's kiss! Your document is beautifully rephrased!",
+    "🎪 Ta-da! Your text just pulled off the ultimate switcheroo!",
+    "🦸 Superhero landing! Your document is ready for action!",
+    "🎯 Bullseye! Perfectly paraphrased and ready to go!",
+    "🌟 Abracadabra! Your content has been wonderfully reworded!",
+    "🎵 And... scene! Your masterpiece is ready!",
+    "🏆 Gold medal performance! Your document shines!",
+    "🍕 Hot and fresh! Your text is ready to serve!",
+    "🎸 Drop the mic! Your paraphrase is legendary!",
+    "🌈 Rainbow road complete! Your document crossed the finish line!",
+    "🎮 Achievement unlocked: Master Paraphraser!",
+    "🔥 Your document just leveled up! Absolutely fire!",
+    
+    // Nick-specific messages
+    "Hey Nick! Your document just got a personality transplant. You're welcome! 😎",
+    "Nick, I hope you're sitting down... your text is THAT good now! 🎩",
+    "Nick's approved! This paraphrase passes the vibe check ✅",
+    "Yo Nick! Your words just went through a spa day. They're glowing! 💆",
+    "Nick, even Shakespeare is jealous of this rewrite! 📜",
+    "Hey Nick, I didn't just paraphrase this... I gave it a glow-up! ✨",
+    "Nick's Document System strikes again! Another masterpiece! 🎨",
+    "Nick, your document is ready. No autographs, please! 🖊️",
+    "Breaking News: Nick's document is now 47% fancier! 📰",
+    "Nick, I seasoned your text with extra flavor. Bon appétit! 👨‍🍳",
+    
+    // Pop culture references
+    "May the words be with you! Your document is Jedi-level now! ⚔️",
+    "Thanos snapped, and half your redundant words vanished! Perfectly balanced! 🫰",
+    "Your document just entered its villain era. It's THAT good! 😈",
+    "Plot twist: Your text was the main character all along! 📖",
+    "This isn't your average paraphrase. This is... ADVANCED paraphrase! 🧪",
+    "Your document just got bit by a radioactive thesaurus! 🕷️",
+    "Houston, we have a paraphrase! And it's out of this world! 🚀",
+    "I solemnly swear this document is now more mischievously worded! 🪄",
+    "Welcome to the matrix. Your document chose the blue pill! 💊",
+    "Your text just pulled a Clark Kent → Superman transformation! 🦸",
+    
+    // Food & cooking themed
+    "Your document is now Michelin-star quality! 👨‍🍳",
+    "Medium rare? Nah, your text is perfectly done! 🥩",
+    "I tossed your words in the air like a pizza chef. Magnifico! 🍕",
+    "Your document just caramelized beautifully. *Chef's kiss* 🍮",
+    "Served fresh with a side of eloquence! Bon appétit! 🍽️",
+    "Your text got the Gordon Ramsay treatment. It's NOT RAW anymore! 👨‍🍳",
+    "Baked to perfection! Your document is golden brown! 🥖",
+    "I whisked your words into something fluffy and delightful! 🥐",
+    
+    // Gaming references
+    "VICTORY ROYALE! Your document just won the battle! 🎮",
+    "Critical hit! Your paraphrase deals 9999 damage! ⚔️",
+    "Achievement Unlocked: Legendary Wordsmith! 🏅",
+    "Combo x100! Your text is on fire! 🔥",
+    "Level up! Your document gained +50 eloquence! ⬆️",
+    "Respawn complete! Your text has a new life! 🔄",
+    "Headshot! Your words hit different now! 🎯",
+    "You've collected all 7 Dragon Balls of paraphrasing! 🐉",
+    "Final boss defeated! Your document is the ultimate champion! 👑",
+    "New high score! This paraphrase is unbeatable! 🕹️",
+    
+    // Movie/TV references
+    "I'll be back... oh wait, your document already is! 🤖",
+    "You had me at 'paraphrase.' Your doc is ready! 💝",
+    "To infinity and beyond! Your text just reached new heights! 🚀",
+    "I'm the king of the world! And this is the king of documents! 🚢",
+    "There's no place like home... and no paraphrase like this! 🌈",
+    "E.T. phone home... to tell everyone about this amazing text! 👽",
+    "Life is like a box of chocolates... this document is the good one! 🍫",
+    "Show me the money! No wait, show me THIS document! 💰",
+    "You can't handle the truth... that your text is THIS good! ⚖️",
+    "Here's looking at you, kid. Your document is beautiful! 🎬",
+    
+    // Music themed
+    "Your document just dropped the hottest album of the year! 🎵",
+    "This paraphrase hits different. It's a whole vibe! 🎧",
+    "Your words are now Grammy-nominated! 🏆",
+    "Remix complete! Your text is the club banger now! 🎶",
+    "Your document just went platinum! 💿",
+    "Drop the bass! Your text is bumping! 🔊",
+    "This paraphrase is a certified bop! 🎤",
+    "Your words are now on the Billboard Hot 100! 📊",
+    
+    // Sports themed
+    "GOOOAAALLL! Your document scores! ⚽",
+    "Touchdown! Your text crossed the goal line! 🏈",
+    "Slam dunk! Nothing but net on this paraphrase! 🏀",
+    "Home run! Your document is out of the park! ⚾",
+    "Hole in one! Perfect paraphrase on the first try! ⛳",
+    "Checkmate! Your document wins the game! ♟️",
+    "Strike! Your text knocked down all the pins! 🎳",
+    "Photo finish! Your document wins by a nose! 🏇",
+    
+    // Science & tech
+    "Einstein called. He wants to study your document! 🧪",
+    "Your text just went quantum. It's in multiple states of awesome! ⚛️",
+    "NASA approved! Your document is ready for launch! 🛸",
+    "Your words evolved like Pokémon! They're way stronger now! ⚡",
+    "Eureka! We've discovered the perfect paraphrase! 🔬",
+    "Your document just passed the Turing test of eloquence! 🤖",
+    "Beam me up, Scotty! This text is out of this world! 🖖",
+    "Your words just split the atom of mediocrity! 💥",
+    
+    // Random hilarious ones
+    "Your document walked in ugly and walked out as a supermodel! 💅",
+    "I put your text through the car wash of eloquence! ✨",
+    "Your words went to finishing school. They have manners now! 🎓",
+    "Document.exe has stopped being boring! 💻",
+    "Your text got a personality transplant. The surgery was a success! 🏥",
+    "I gave your words a makeover. They clean up NICE! 💄",
+    "Your document leveled up from 'meh' to 'WOW'! 📈",
+    "The transformation is complete. Your text is now a butterfly! 🦋",
+    "Your words went to therapy. They're so much better now! 🛋️",
+    "I unleashed the kraken of paraphrasing on your document! 🐙",
+    "Your text got struck by lightning. It's electric now! ⚡",
+    "Document upgrade: complete. Installing confidence... 100%! 📊",
+    "Your words just graduated with honors! 🎓",
+    "I sprinkled some magic dust on your text. Poof! ✨",
+    "Your document is now fluent in Fancy! 🎩",
+    "Warning: Your text is now hazardously good! ⚠️",
+    "I turned your document up to 11! 🎸",
+    "Your words just got their pilot's license! Ready for takeoff! ✈️",
+    "Plot twist: Your document was secretly amazing all along! 🎭",
+    "Your text just won Document Idol! 🎤",
+    "Congratulations! Your words are now Instagram-worthy! 📸",
+    "Your document joined the Avengers of eloquence! 🦸",
+    "I fed your text some spinach. It's strong now! 💪",
+    "Your words are now certified organic and locally sourced! 🌱",
+    "Document status: SLAYING! 💅",
+    "Your text is now main character energy! ⭐",
+    "I gave your words a Red Bull. They have wings now! 🪽",
+    "Your document is now too cool for school! 😎",
+    "Warning: This paraphrase may cause extreme satisfaction! ⚠️",
+    "Your text just became the chosen one! 🔮",
+    "I blessed your document with the holy water of eloquence! 💧",
+    "Your words are now black belt in communication! 🥋",
+    "Document transformation: Bruce Banner → Hulk! SMASH! 💚",
+    "Your text just won the lottery of linguistics! 💰",
+    "I vaccinated your document against boring-ness! 💉",
+    "Your words are now street legal in all 50 states! 🚗",
+    "Document upgrade: From dial-up to fiber optic! 🚀",
+    "Your text just earned its PhD in Awesome! 🎓",
+    "I gave your words a spa day at the Dictionary Resort! 🧖",
+    "Your document is now Marie Kondo approved! It sparks joy! ✨",
+    "Warning: Side effects may include excessive readability! 💊",
+    "Your text just became a certified snack! 🍪",
+    "Document.exe has successfully updated to version 2.0! 💻",
+    "Your words are now Netflix-worthy! Binge-read ready! 📺",
+    "I put your text in the hyperbolic time chamber. It's stronger! ⏰",
+    "Your document just unlocked its final form! 🦎",
+    "Roses are red, violets are blue, your document is paraphrased, and it's amazing too! 🌹",
+  ];
 
   const [config, setConfig] = useState<ParaphrasingConfig>({
     tone: 'neutral',
@@ -162,6 +321,12 @@ export default function Home() {
         setResult(data.result || '');
         setHallucinationScore(data.hallucinationScore ?? null);
         setProcessing(false);
+        
+        // Show completion popup with random funny message
+        const randomMessage = funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+        setCompletionMessage(randomMessage);
+        setShowCompletionPopup(true);
+        
         if (pollIntervalRef.current) {
           clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
@@ -244,6 +409,11 @@ export default function Home() {
         setHallucinationScore(data.hallucinationScore ?? null);
         setProgress(100);
         setProcessing(false);
+        
+        // Show completion popup with random funny message
+        const randomMessage = funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+        setCompletionMessage(randomMessage);
+        setShowCompletionPopup(true);
       } else {
         // Fallback to polling if status is not completed (backward compatibility)
         pollIntervalRef.current = setInterval(() => {
@@ -311,38 +481,89 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Nick's Document System</h1>
-          <p className="text-gray-600 mb-2">AI-powered document paraphrasing with 10+ advanced models</p>
-          <p className="text-sm text-indigo-600 mb-8">✨ Pro Features: Up to 50MB files, 700+ pages, 5-minute processing</p>
+    <EtherealShadow
+      color="rgba(194, 65, 12, 0.6)"
+      animation={{ scale: 100, speed: 90 }}
+      noise={{ opacity: 0.4, scale: 1.2 }}
+      sizing="fill"
+      className="min-h-screen w-full bg-orange-950"
+    >
+      <div className="min-h-screen py-12 px-4 flex items-center justify-center">
+        <div className="max-w-4xl w-full mx-auto">
+          <div className={`bg-white/85 backdrop-blur-2xl rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-8 md:p-10 border-white/40 ring-1 ring-black/5 relative ${
+            processing 
+              ? 'border-4 animate-rainbow-border' 
+              : 'border'
+          }`}>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 text-center">Nick's Document System</h1>
+            <p className="text-gray-700 text-lg mb-8 text-center">AI-powered document paraphrasing with 10+ advanced models</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* File Upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-800 mb-3">
                 Select Document
               </label>
-              <div className="flex items-center space-x-4">
+              <div className="relative">
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.docx,.txt"
                   onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  className="hidden"
+                  id="file-upload"
                 />
+                <label
+                  htmlFor="file-upload"
+                  className="flex items-center justify-center w-full px-6 py-4 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-dashed border-orange-300 rounded-xl cursor-pointer hover:border-orange-400 hover:from-orange-100 hover:to-amber-100 transition-all shadow-sm hover:shadow-md"
+                >
+                  <div className="text-center">
+                    <svg className="mx-auto h-12 w-12 text-orange-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <div className="text-sm text-gray-700">
+                      <span className="font-semibold text-orange-600">Choose a file</span>
+                      <span className="text-gray-500"> or drag and drop</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">PDF, DOCX, or TXT up to 4MB</p>
+                  </div>
+                </label>
               </div>
               {file && (
-                <p className="mt-2 text-sm text-gray-600">
-                  Selected: <span className="font-medium">{file.name}</span> ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                </p>
+                <div className="mt-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl flex items-center gap-4 animate-slide-in">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                      <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-green-800 mb-1">✓ File Ready to Process</p>
+                    <p className="text-sm text-gray-700 font-medium truncate">{file.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB • {file.type || 'Document'}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    className="flex-shrink-0 text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               )}
             </div>
 
             {/* AI Model Selection */}
-            <div className="border-t pt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+            <div className="border-t border-gray-200 pt-6">
+              <label className="block text-sm font-medium text-gray-800 mb-3">
                 AI Model
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -354,14 +575,14 @@ export default function Home() {
                       setSelectedModel(model);
                       setConfig({ ...config, model: model.id });
                     }}
-                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                    className={`relative p-4 rounded-xl border-2 text-left transition-all ${
                       selectedModel.id === model.id
-                        ? 'border-indigo-600 bg-indigo-50'
-                        : 'border-gray-200 hover:border-indigo-300 bg-white'
+                        ? 'border-orange-500 bg-orange-50 shadow-lg'
+                        : 'border-gray-200 hover:border-orange-300 bg-white hover:bg-gray-50'
                     }`}
                   >
                     {model.recommended && (
-                      <span className="absolute top-2 right-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">
+                      <span className="absolute top-2 right-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full shadow-lg">
                         Recommended
                       </span>
                     )}
@@ -383,12 +604,45 @@ export default function Home() {
             </div>
 
             {/* Paraphrasing Intensity Slider */}
-            <div className="border-t pt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+            <div className="border-t border-gray-200 pt-6">
+              <label className="block text-base font-semibold text-gray-800 mb-6 text-center">
                 Paraphrasing Intensity
               </label>
-              <div className="px-2">
-                <div className="flex items-center gap-4 mb-2">
+              <div className="px-8 py-4">
+                {/* Current Level Indicator */}
+                <div className="mb-6 text-center">
+                  <div className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-2xl border-2 border-orange-200 shadow-lg">
+                    <span className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent">
+                      {(config.intensity || 3) === 1 && 'Minimal'}
+                      {(config.intensity || 3) === 2 && 'Light'}
+                      {(config.intensity || 3) === 3 && 'Moderate'}
+                      {(config.intensity || 3) === 4 && 'Substantial'}
+                      {(config.intensity || 3) === 5 && 'Complete'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Slider Container */}
+                <div className="relative mb-8 px-2">
+                  {/* Slider Track with Dots */}
+                  <div className="absolute top-1/2 left-2 right-2 -translate-y-1/2 pointer-events-none">
+                    <div className="h-2 bg-gradient-to-r from-orange-200 via-orange-300 to-amber-400 rounded-full shadow-inner" />
+                    {/* Position Markers */}
+                    <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 flex justify-between">
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <div
+                          key={level}
+                          className={`w-5 h-5 -ml-2.5 rounded-full border-3 transition-all duration-300 ${
+                            (config.intensity || 3) === level
+                              ? 'bg-white border-orange-600 scale-125 shadow-xl'
+                              : 'bg-white border-gray-300 scale-100'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Actual Slider Input */}
                   <input
                     type="range"
                     min="1"
@@ -396,83 +650,156 @@ export default function Home() {
                     step="1"
                     value={config.intensity || 3}
                     onChange={(e) => setConfig({ ...config, intensity: parseInt(e.target.value) })}
-                    className="flex-1 h-2 bg-gradient-to-r from-blue-200 via-indigo-300 to-purple-400 rounded-lg appearance-none cursor-pointer slider-thumb"
+                    className="relative w-full h-8 appearance-none bg-transparent cursor-pointer z-10"
                     style={{
-                      background: `linear-gradient(to right, 
-                        rgb(191, 219, 254) 0%, 
-                        rgb(165, 180, 252) ${((config.intensity || 3) - 1) * 25}%, 
-                        rgb(196, 181, 253) ${((config.intensity || 3) - 1) * 25}%, 
-                        rgb(221, 214, 254) 100%)`
+                      WebkitAppearance: 'none',
                     }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-gray-600 px-1">
-                  <span className={`transition-all ${(config.intensity || 3) === 1 ? 'font-bold text-indigo-700' : ''}`}>Minimal</span>
-                  <span className={`transition-all ${(config.intensity || 3) === 2 ? 'font-bold text-indigo-700' : ''}`}>Light</span>
-                  <span className={`transition-all ${(config.intensity || 3) === 3 ? 'font-bold text-indigo-700' : ''}`}>Moderate</span>
-                  <span className={`transition-all ${(config.intensity || 3) === 4 ? 'font-bold text-indigo-700' : ''}`}>Substantial</span>
-                  <span className={`transition-all ${(config.intensity || 3) === 5 ? 'font-bold text-indigo-700' : ''}`}>Complete</span>
+
+                {/* Level Labels */}
+                <div className="flex justify-between mb-6 px-1">
+                  {[
+                    { value: 1, label: 'Minimal' },
+                    { value: 2, label: 'Light' },
+                    { value: 3, label: 'Moderate' },
+                    { value: 4, label: 'Substantial' },
+                    { value: 5, label: 'Complete' },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setConfig({ ...config, intensity: value })}
+                      className={`flex-1 text-center transition-all duration-300 cursor-pointer py-2 rounded-lg ${
+                        (config.intensity || 3) === value
+                          ? 'text-sm font-bold text-orange-700 scale-110'
+                          : 'text-xs font-medium text-gray-500 hover:text-orange-600 hover:scale-105'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-3 text-center italic">
-                  {(config.intensity || 3) === 1 && 'Keeps very close to original wording'}
-                  {(config.intensity || 3) === 2 && 'Light modifications to structure and vocabulary'}
-                  {(config.intensity || 3) === 3 && 'Balanced rewrite with different phrasing'}
-                  {(config.intensity || 3) === 4 && 'Significant rephrase with new structures'}
-                  {(config.intensity || 3) === 5 && 'Complete transformation with fresh expression'}
-                </p>
+
+                {/* Description Panel */}
+                <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100 shadow-sm">
+                  <p className="text-sm leading-relaxed text-gray-700 text-center">
+                    {(config.intensity || 3) === 1 && (
+                      <span><strong className="text-orange-700">Minimal Changes:</strong> Preserves original wording with only essential vocabulary adjustments. Ideal for technical or legal documents.</span>
+                    )}
+                    {(config.intensity || 3) === 2 && (
+                      <span><strong className="text-orange-700">Light Touch:</strong> Subtle modifications to structure and word choice while maintaining the original voice and style.</span>
+                    )}
+                    {(config.intensity || 3) === 3 && (
+                      <span><strong className="text-orange-700">Balanced Rewrite:</strong> Comprehensive rephrasing with different sentence structures and vocabulary, preserving all original meaning.</span>
+                    )}
+                    {(config.intensity || 3) === 4 && (
+                      <span><strong className="text-orange-700">Substantial Transformation:</strong> Significant restructuring with new phrasing and expression patterns while keeping factual accuracy.</span>
+                    )}
+                    {(config.intensity || 3) === 5 && (
+                      <span><strong className="text-orange-700">Complete Reimagination:</strong> Fresh, creative expression of the same ideas with entirely new structures and vocabulary.</span>
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
 
             {/* Configuration */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
+            <div className="border-t border-gray-200 pt-6 space-y-6">
+              {/* Tone */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
-                <select
-                  value={config.tone}
-                  onChange={(e) => setConfig({ ...config, tone: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="formal">Formal</option>
-                  <option value="neutral">Neutral</option>
-                  <option value="casual">Casual</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-800 mb-3">Tone</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'formal', label: 'Formal', icon: '👔', desc: 'Professional' },
+                    { value: 'neutral', label: 'Neutral', icon: '⚖️', desc: 'Balanced' },
+                    { value: 'casual', label: 'Casual', icon: '😊', desc: 'Friendly' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setConfig({ ...config, tone: option.value as any })}
+                      className={`p-3 rounded-xl border-2 transition-all text-center ${
+                        config.tone === option.value
+                          ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 shadow-md scale-105'
+                          : 'border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50/50'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{option.icon}</div>
+                      <div className="text-sm font-semibold text-gray-900">{option.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{option.desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Formality */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Formality</label>
-                <select
-                  value={config.formality}
-                  onChange={(e) => setConfig({ ...config, formality: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-800 mb-3">Formality</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'high', label: 'High', icon: '🎩', desc: 'Very formal' },
+                    { value: 'medium', label: 'Medium', icon: '📝', desc: 'Standard' },
+                    { value: 'low', label: 'Low', icon: '💬', desc: 'Conversational' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setConfig({ ...config, formality: option.value as any })}
+                      className={`p-3 rounded-xl border-2 transition-all text-center ${
+                        config.formality === option.value
+                          ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 shadow-md scale-105'
+                          : 'border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50/50'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{option.icon}</div>
+                      <div className="text-sm font-semibold text-gray-900">{option.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{option.desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Creativity */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Creativity</label>
-                <select
-                  value={config.creativity}
-                  onChange={(e) => setConfig({ ...config, creativity: e.target.value as any })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="conservative">Conservative</option>
-                  <option value="moderate">Moderate</option>
-                  <option value="creative">Creative</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-800 mb-3">Creativity</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'conservative', label: 'Conservative', icon: '🛡️', desc: 'Safe & close' },
+                    { value: 'moderate', label: 'Moderate', icon: '🎨', desc: 'Balanced' },
+                    { value: 'creative', label: 'Creative', icon: '✨', desc: 'Imaginative' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setConfig({ ...config, creativity: option.value as any })}
+                      className={`p-3 rounded-xl border-2 transition-all text-center ${
+                        config.creativity === option.value
+                          ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 shadow-md scale-105'
+                          : 'border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50/50'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{option.icon}</div>
+                      <div className="text-sm font-semibold text-gray-900">{option.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{option.desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex items-center">
-                <label className="flex items-center space-x-2 cursor-pointer">
+              {/* Preserve Formatting */}
+              <div className="pt-2">
+                <label className="flex items-center space-x-3 cursor-pointer p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-orange-300 hover:bg-orange-50/50 transition-all">
                   <input
                     type="checkbox"
                     checked={config.preserveFormatting}
                     onChange={(e) => setConfig({ ...config, preserveFormatting: e.target.checked })}
-                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                   />
-                  <span className="text-sm font-medium text-gray-700">Preserve Formatting</span>
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold text-gray-900">Preserve Formatting</span>
+                    <p className="text-xs text-gray-500 mt-0.5">Keep original structure and layout</p>
+                  </div>
                 </label>
               </div>
             </div>
@@ -481,22 +808,38 @@ export default function Home() {
             <button
               type="submit"
               disabled={!file || processing}
-              className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              className={`w-full py-3 px-6 rounded-xl font-semibold transition-all ${
+                file && !processing
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:from-orange-600 hover:to-amber-600 shadow-lg hover:shadow-xl cursor-pointer'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+              }`}
             >
-              {processing ? 'Processing...' : 'Paraphrase Document'}
+              {processing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : !file ? (
+                'Upload a Document First'
+              ) : (
+                'Paraphrase Document'
+              )}
             </button>
           </form>
 
           {/* Progress */}
           {processing && (
             <div className="mt-6">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <div className="flex justify-between text-sm text-gray-700 mb-2">
                 <span>Processing chunk {currentChunk} of {totalChunks}</span>
                 <span>{progress}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div
-                  className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
@@ -508,7 +851,7 @@ export default function Home() {
 
           {/* Error */}
           {error && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-red-800 text-sm">{error}</p>
             </div>
           )}
@@ -520,7 +863,7 @@ export default function Home() {
                 <h2 className="text-lg font-semibold text-gray-900">Paraphrased Result</h2>
                 <button
                   onClick={downloadResult}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all text-sm font-medium shadow-lg hover:shadow-xl"
                 >
                   Download {file?.name.split('.').pop()?.toUpperCase() || 'File'}
                 </button>
@@ -603,12 +946,35 @@ export default function Home() {
                 </div>
               )}
               
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 max-h-96 overflow-y-auto">
                 <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{result}</pre>
               </div>
             </div>
           )}
           
+          {/* Completion Popup */}
+          {showCompletionPopup && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full transform animate-bounce-in">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🎉</div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                    Document Paraphrased!
+                  </h3>
+                  <p className="text-lg text-gray-700 mb-6">
+                    {completionMessage}
+                  </p>
+                  <button
+                    onClick={() => setShowCompletionPopup(false)}
+                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    Awesome! Show me the results
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-gray-200">
             <p className="text-center text-sm text-gray-600">
@@ -616,13 +982,14 @@ export default function Home() {
               <span className="mx-2">•</span>
               Powered by Open Insurance AI
               <span className="mx-2">•</span>
-              <a href="https://github.com/arihealthbird/doc-paraphraser-nextjs" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700">
+              <a href="https://github.com/arihealthbird/doc-paraphraser-nextjs" target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:text-orange-700 underline">
                 GitHub
               </a>
             </p>
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </EtherealShadow>
   );
 }

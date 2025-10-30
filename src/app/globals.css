@@ -2,52 +2,153 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom range slider styles */
-input[type="range"].slider-thumb {
+/* Custom range slider styles - invisible thumb, using dot markers */
+input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
 }
 
-input[type="range"].slider-thumb::-webkit-slider-thumb {
+input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 24px;
   height: 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border: 3px solid white;
+  background: transparent;
+  border: none;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4), 0 0 0 0 rgba(99, 102, 241, 0.2);
-  transition: all 0.2s ease;
+  position: relative;
+  z-index: 10;
 }
 
-input[type="range"].slider-thumb::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6), 0 0 0 4px rgba(99, 102, 241, 0.1);
-}
-
-input[type="range"].slider-thumb::-webkit-slider-thumb:active {
-  transform: scale(1.05);
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.5), 0 0 0 6px rgba(99, 102, 241, 0.15);
-}
-
-input[type="range"].slider-thumb::-moz-range-thumb {
+input[type="range"]::-moz-range-thumb {
   width: 24px;
   height: 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border: 3px solid white;
+  background: transparent;
+  border: none;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4), 0 0 0 0 rgba(99, 102, 241, 0.2);
-  transition: all 0.2s ease;
+  position: relative;
+  z-index: 10;
 }
 
-input[type="range"].slider-thumb::-moz-range-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.6), 0 0 0 4px rgba(99, 102, 241, 0.1);
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 12px;
+  background: transparent;
+  border: none;
 }
 
-input[type="range"].slider-thumb::-moz-range-thumb:active {
-  transform: scale(1.05);
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.5), 0 0 0 6px rgba(99, 102, 241, 0.15);
+input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 12px;
+  background: transparent;
+  border: none;
+}
+
+/* Glassmorphism styles */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(30px) saturate(200%);
+    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Rainbow border animation - Mario Kart style! */
+@keyframes rainbow-border {
+  0% {
+    border-color: #ff0000;
+  }
+  14% {
+    border-color: #ff7f00;
+  }
+  28% {
+    border-color: #ffff00;
+  }
+  42% {
+    border-color: #00ff00;
+  }
+  57% {
+    border-color: #0000ff;
+  }
+  71% {
+    border-color: #4b0082;
+  }
+  85% {
+    border-color: #9400d3;
+  }
+  100% {
+    border-color: #ff0000;
+  }
+}
+
+.animate-rainbow-border {
+  animation: rainbow-border 2s linear infinite;
+}
+
+/* Popup animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* Slide in animation for file upload */
+@keyframes slide-in {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.4s ease-out;
 }
