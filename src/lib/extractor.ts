@@ -1,5 +1,6 @@
 import mammoth from 'mammoth';
 import { ExtractedDocument } from './types';
+import PDFParser from 'pdf2json';
 
 export class DocumentExtractor {
   async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
@@ -22,25 +23,63 @@ export class DocumentExtractor {
   }
 
   private async extractFromPDF(buffer: Buffer): Promise<ExtractedDocument> {
-    console.log('[Extractor] Starting PDF extraction with pdf-parse');
-    try {
-      // Dynamic import for pdf-parse to work with Next.js
-      const pdfParse = (await import('pdf-parse')).default;
-      const data = await pdfParse(buffer);
-      const text = data.text;
-      const pageCount = data.numpages;
+    console.log('[Extractor] Starting PDF extraction with pdf2json');
+    
+    return new Promise((resolve, reject) => {
+      const pdfParser = new PDFParser(null, 1);
       
-      console.log(`PDF extracted: ${text.length} chars, ${pageCount} pages`);
+      pdfParser.on('pdfParser_dataError', (errData: any) => {
+        console.error('[Extractor] PDF parser error:', errData.parserError);
+        reject(new Error(`PDF parsing failed: ${errData.parserError}`));
+      });
       
-      return {
-        text: text.trim(),
-        pageCount,
-        wordCount: this.countWords(text),
-      };
-    } catch (error: any) {
-      console.error('[Extractor] PDF parsing error:', error);
-      throw new Error(`PDF parsing failed: ${error.message}`);
-    }
+      pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+        try {
+          let fullText = '';
+          
+          // Extract text from all pages
+          if (pdfData.Pages && Array.isArray(pdfData.Pages)) {
+            for (const page of pdfData.Pages) {
+              if (page.Texts && Array.isArray(page.Texts)) {
+                for (const textItem of page.Texts) {
+                  if (textItem.R && Array.isArray(textItem.R)) {
+                    for (const run of textItem.R) {
+                      if (run.T) {
+                        // Decode URI-encoded text
+                        fullText += decodeURIComponent(run.T) + ' ';
+                      }
+                    }
+                  }
+                }
+              }
+              fullText += '\n\n';
+            }
+          }
+          
+          const text = fullText.trim();
+          const pageCount = pdfData.Pages?.length || 0;
+          
+          console.log(`[Extractor] PDF extracted: ${text.length} chars, ${pageCount} pages`);
+          
+          if (text.length === 0) {
+            reject(new Error('PDF appears to be empty or contains only images'));
+            return;
+          }
+          
+          resolve({
+            text,
+            pageCount,
+            wordCount: this.countWords(text),
+          });
+        } catch (error: any) {
+          console.error('[Extractor] Error processing PDF data:', error);
+          reject(new Error(`PDF data processing failed: ${error.message}`));
+        }
+      });
+      
+      // Parse the buffer
+      pdfParser.parseBuffer(buffer);
+    });
   }
 
   private async extractFromDOCX(buffer: Buffer): Promise<ExtractedDocument> {
