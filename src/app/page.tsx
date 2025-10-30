@@ -205,26 +205,29 @@ export default function Home() {
         body: formData,
       });
 
+      // Parse response text first to avoid double-consuming
+      const responseText = await response.text();
+      
       if (!response.ok) {
         if (response.status === 413) {
           throw new Error('File too large for server. Maximum is 4MB due to Vercel limits.');
         }
-        // Try to parse error response, but handle if it's not JSON
-        let errorMessage = `Failed to process document (${response.status})`;
+        // Try to parse error as JSON
+        let errorMessage = `Failed to process document (${response.status})`;  
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(responseText);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          // Response wasn't JSON, use the text instead
-          const errorText = await response.text();
-          if (errorText) {
-            errorMessage = errorText;
+          // Not JSON, use raw text
+          if (responseText) {
+            errorMessage = responseText;
           }
         }
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      // Parse successful response
+      const data = JSON.parse(responseText);
       setJobId(data.jobId);
       setTotalChunks(data.totalChunks || 0);
 
