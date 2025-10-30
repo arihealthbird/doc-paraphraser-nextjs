@@ -1,6 +1,6 @@
 import mammoth from 'mammoth';
 import { ExtractedDocument } from './types';
-import * as pdfParse from 'pdf-parse';
+const pdfParse = require('pdf-parse');
 
 export class DocumentExtractor {
   async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
