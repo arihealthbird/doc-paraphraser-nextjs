@@ -4,23 +4,31 @@ import PDFParser from 'pdf2json';
 
 export class DocumentExtractor {
   async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
-    switch (fileType.toLowerCase()) {
-      case 'pdf':
-        return this.extractFromPDF(buffer);
-      case 'docx':
-        return this.extractFromDOCX(buffer);
-      case 'txt':
-        return this.extractFromTXT(buffer);
-      default:
-        throw new Error(`Unsupported file type: ${fileType}`);
+    console.log(`[Extractor] Extracting ${fileType} file, buffer size: ${buffer.length}`);
+    try {
+      switch (fileType.toLowerCase()) {
+        case 'pdf':
+          return await this.extractFromPDF(buffer);
+        case 'docx':
+          return await this.extractFromDOCX(buffer);
+        case 'txt':
+          return this.extractFromTXT(buffer);
+        default:
+          throw new Error(`Unsupported file type: ${fileType}`);
+      }
+    } catch (error: any) {
+      console.error(`[Extractor] Error extracting ${fileType}:`, error);
+      throw new Error(`Failed to extract text from ${fileType}: ${error.message}`);
     }
   }
 
   private async extractFromPDF(buffer: Buffer): Promise<ExtractedDocument> {
+    console.log('[Extractor] Starting PDF extraction with pdf2json');
     return new Promise((resolve, reject) => {
       const pdfParser = new PDFParser();
       
       pdfParser.on('pdfParser_dataError', (errData: any) => {
+        console.error('[Extractor] PDF parsing error:', errData);
         reject(new Error(errData.parserError));
       });
       

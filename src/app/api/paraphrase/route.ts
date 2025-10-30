@@ -62,9 +62,15 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Extract text from document
+    console.log('Creating extractor and extracting text...');
     const extractor = new DocumentExtractor();
     const extracted = await extractor.extractText(buffer, fileExtension);
     console.log(`Extracted text length: ${extracted.text.length} chars, ${extracted.wordCount} words`);
+    
+    if (!extracted.text || extracted.text.trim().length === 0) {
+      console.error('Extracted text is empty!');
+      return NextResponse.json({ error: 'Failed to extract text from document. The file may be empty or corrupted.' }, { status: 400 });
+    }
 
     // Calculate total chunks
     const chunker = new TextChunker();
