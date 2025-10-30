@@ -1,7 +1,6 @@
 import mammoth from 'mammoth';
 import { ExtractedDocument } from './types';
-// @ts-ignore - pdf-parse is a CommonJS module
-const pdfParse = require('pdf-parse');
+import PDFParser from 'pdf2json';
 
 export class DocumentExtractor {
   async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
@@ -18,13 +17,45 @@ export class DocumentExtractor {
   }
 
   private async extractFromPDF(buffer: Buffer): Promise<ExtractedDocument> {
-    const data = await pdfParse(buffer);
-    
-    return {
-      text: data.text,
-      pageCount: data.numpages,
-      wordCount: this.countWords(data.text),
-    };
+    return new Promise((resolve, reject) => {
+      const pdfParser = new PDFParser();
+      
+      pdfParser.on('pdfParser_dataError', (errData: any) => {
+        reject(new Error(errData.parserError));
+      });
+      
+      pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+        // Extract text from all pages
+        let text = '';
+        if (pdfData.Pages) {
+          for (const page of pdfData.Pages) {
+            if (page.Texts) {
+              for (const textItem of page.Texts) {
+                if (textItem.R) {
+                  for (const run of textItem.R) {
+                    if (run.T) {
+                      text += decodeURIComponent(run.T) + ' ';
+                    }
+                  }
+                }
+              }
+            }
+            text += '\n';
+          }
+        }
+        
+        const pageCount = pdfData.Pages?.length || 0;
+        console.log(`PDF extracted: ${text.length} chars, ${pageCount} pages`);
+        
+        resolve({
+          text: text.trim(),
+          pageCount,
+          wordCount: this.countWords(text),
+        });
+      });
+      
+      pdfParser.parseBuffer(buffer);
+    });
   }
 
   private async extractFromDOCX(buffer: Buffer): Promise<ExtractedDocument> {

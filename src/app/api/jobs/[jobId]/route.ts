@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DatabaseService } from '../../../../../lib/db/service';
 
-const dbService = new DatabaseService();
+const dbService = DatabaseService.getInstance();
 
 export const dynamic = 'force-dynamic';
 
@@ -12,11 +12,13 @@ export async function GET(
   try {
     const { jobId } = params;
 
-    const { job, result } = await dbService.getJobWithResult(jobId);
+    const { job, result, hallucinationScore } = await dbService.getJobWithResult(jobId);
 
     if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
+
+    console.log(`Job ${jobId} status: ${job.status}, result: ${result ? result.length + ' chars' : 'null'}`);
 
     return NextResponse.json({
       jobId: job.jobId,
@@ -26,6 +28,7 @@ export async function GET(
       totalChunks: job.totalChunks,
       error: job.error,
       result: result,
+      hallucinationScore: hallucinationScore,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
     });

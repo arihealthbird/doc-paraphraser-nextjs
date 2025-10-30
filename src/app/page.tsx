@@ -96,6 +96,7 @@ export default function Home() {
   const [result, setResult] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [jobId, setJobId] = useState<string>('');
+  const [hallucinationScore, setHallucinationScore] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -105,6 +106,7 @@ export default function Home() {
     creativity: 'moderate',
     preserveFormatting: true,
     model: AI_MODELS[0].id, // Default to Claude 3.5 Sonnet
+    intensity: 3, // Default to moderate paraphrasing
   });
   
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
@@ -149,12 +151,16 @@ export default function Home() {
 
       const data = JSON.parse(text);
       
+      console.log('Job status:', data.status, 'Result:', data.result ? `${data.result.length} chars` : 'null');
+      
       setProgress(data.progress || 0);
       setCurrentChunk(data.currentChunk || 0);
       setTotalChunks(data.totalChunks || 0);
 
       if (data.status === 'completed') {
+        console.log('Setting result:', data.result);
         setResult(data.result || '');
+        setHallucinationScore(data.hallucinationScore ?? null);
         setProcessing(false);
         if (pollIntervalRef.current) {
           clearInterval(pollIntervalRef.current);
@@ -194,6 +200,7 @@ export default function Home() {
     setError('');
     setResult('');
     setJobId('');
+    setHallucinationScore(null);
 
     try {
       const formData = new FormData();
@@ -244,17 +251,57 @@ export default function Home() {
     }
   };
 
-  const downloadResult = () => {
-    if (!result) return;
-    const blob = new Blob([result], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `paraphrased_${file?.name?.replace(/\.[^.]+$/, '.txt')}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const downloadResult = async () => {
+    if (!jobId) return;
+    
+    try {
+      // Download in original format from API
+      const response = await fetch(`/api/download/${jobId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `paraphrased_${file?.name}`;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+?)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Download error:', err);
+      setError(err.message || 'Failed to download file');
+    }
+  };
+  
+  const getHallucinationAssessment = (score: number | null) => {
+    if (score === null) return null;
+    
+    if (score <= 20) {
+      return { label: 'Excellent', color: 'green', bgColor: 'bg-green-50', textColor: 'text-green-800', borderColor: 'border-green-200' };
+    } else if (score <= 40) {
+      return { label: 'Good', color: 'blue', bgColor: 'bg-blue-50', textColor: 'text-blue-800', borderColor: 'border-blue-200' };
+    } else if (score <= 60) {
+      return { label: 'Moderate', color: 'yellow', bgColor: 'bg-yellow-50', textColor: 'text-yellow-800', borderColor: 'border-yellow-200' };
+    } else if (score <= 80) {
+      return { label: 'Poor', color: 'orange', bgColor: 'bg-orange-50', textColor: 'text-orange-800', borderColor: 'border-orange-200' };
+    } else {
+      return { label: 'Critical', color: 'red', bgColor: 'bg-red-50', textColor: 'text-red-800', borderColor: 'border-red-200' };
+    }
   };
 
   return (
@@ -329,8 +376,49 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Paraphrasing Intensity Slider */}
+            <div className="border-t pt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Paraphrasing Intensity
+              </label>
+              <div className="px-2">
+                <div className="flex items-center gap-4 mb-2">
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="1"
+                    value={config.intensity || 3}
+                    onChange={(e) => setConfig({ ...config, intensity: parseInt(e.target.value) })}
+                    className="flex-1 h-2 bg-gradient-to-r from-blue-200 via-indigo-300 to-purple-400 rounded-lg appearance-none cursor-pointer slider-thumb"
+                    style={{
+                      background: `linear-gradient(to right, 
+                        rgb(191, 219, 254) 0%, 
+                        rgb(165, 180, 252) ${((config.intensity || 3) - 1) * 25}%, 
+                        rgb(196, 181, 253) ${((config.intensity || 3) - 1) * 25}%, 
+                        rgb(221, 214, 254) 100%)`
+                    }}
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-600 px-1">
+                  <span className={`transition-all ${(config.intensity || 3) === 1 ? 'font-bold text-indigo-700' : ''}`}>Minimal</span>
+                  <span className={`transition-all ${(config.intensity || 3) === 2 ? 'font-bold text-indigo-700' : ''}`}>Light</span>
+                  <span className={`transition-all ${(config.intensity || 3) === 3 ? 'font-bold text-indigo-700' : ''}`}>Moderate</span>
+                  <span className={`transition-all ${(config.intensity || 3) === 4 ? 'font-bold text-indigo-700' : ''}`}>Substantial</span>
+                  <span className={`transition-all ${(config.intensity || 3) === 5 ? 'font-bold text-indigo-700' : ''}`}>Complete</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-3 text-center italic">
+                  {(config.intensity || 3) === 1 && 'Keeps very close to original wording'}
+                  {(config.intensity || 3) === 2 && 'Light modifications to structure and vocabulary'}
+                  {(config.intensity || 3) === 3 && 'Balanced rewrite with different phrasing'}
+                  {(config.intensity || 3) === 4 && 'Significant rephrase with new structures'}
+                  {(config.intensity || 3) === 5 && 'Complete transformation with fresh expression'}
+                </p>
+              </div>
+            </div>
+
             {/* Configuration */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tone</label>
                 <select
@@ -428,9 +516,87 @@ export default function Home() {
                   onClick={downloadResult}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
                 >
-                  Download TXT
+                  Download {file?.name.split('.').pop()?.toUpperCase() || 'File'}
                 </button>
               </div>
+              
+              {/* Hallucination Score */}
+              {hallucinationScore !== null && (
+                <div className={`mb-4 p-5 rounded-xl border-2 ${
+                  getHallucinationAssessment(hallucinationScore)?.bgColor
+                } ${
+                  getHallucinationAssessment(hallucinationScore)?.borderColor
+                }`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className={`text-lg font-bold ${
+                          getHallucinationAssessment(hallucinationScore)?.textColor
+                        }`}>
+                          {getHallucinationAssessment(hallucinationScore)?.label} Quality
+                        </h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          getHallucinationAssessment(hallucinationScore)?.bgColor
+                        } ${
+                          getHallucinationAssessment(hallucinationScore)?.textColor
+                        } border ${
+                          getHallucinationAssessment(hallucinationScore)?.borderColor
+                        }`}>
+                          {hallucinationScore}% Hallucination Risk
+                        </span>
+                      </div>
+                      
+                      <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+                        {hallucinationScore <= 20 && (
+                          <span>✅ <strong>Outstanding fidelity.</strong> The paraphrase stays true to the original content with minimal risk of added or altered information. Safe to use without additional review.</span>
+                        )}
+                        {hallucinationScore > 20 && hallucinationScore <= 40 && (
+                          <span>✓ <strong>Good fidelity.</strong> Minor deviations detected but the core meaning is preserved. Light review recommended for critical documents.</span>
+                        )}
+                        {hallucinationScore > 40 && hallucinationScore <= 60 && (
+                          <span>⚠️ <strong>Moderate changes detected.</strong> Some rephrasing may have altered nuances. Review is recommended to ensure accuracy.</span>
+                        )}
+                        {hallucinationScore > 60 && hallucinationScore <= 80 && (
+                          <span>⚠️ <strong>Significant deviations found.</strong> The paraphrase includes notable changes that may affect meaning. Careful review is strongly advised.</span>
+                        )}
+                        {hallucinationScore > 80 && (
+                          <span>❌ <strong>High risk of hallucinations.</strong> Major content alterations or potential fabrications detected. Thorough review and fact-checking required before use.</span>
+                        )}
+                      </p>
+                      
+                      {/* Visual bar indicator */}
+                      <div className="mt-3">
+                        <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
+                          <span>Low Risk</span>
+                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all duration-500 ${
+                                hallucinationScore <= 20 ? 'bg-green-500' :
+                                hallucinationScore <= 40 ? 'bg-blue-500' :
+                                hallucinationScore <= 60 ? 'bg-yellow-500' :
+                                hallucinationScore <= 80 ? 'bg-orange-500' :
+                                'bg-red-500'
+                              }`}
+                              style={{ width: `${hallucinationScore}%` }}
+                            />
+                          </div>
+                          <span>High Risk</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-center justify-center px-4">
+                      <div className={`text-5xl font-black ${
+                        getHallucinationAssessment(hallucinationScore)?.textColor
+                      }`}>
+                        {hallucinationScore}%
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1 text-center">risk score</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
                 <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{result}</pre>
               </div>

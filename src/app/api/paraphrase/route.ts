@@ -4,13 +4,14 @@ import { ParaphrasingEngine } from '@/lib/engine';
 import { ParaphrasingConfig } from '@/lib/types';
 import { DatabaseService } from '../../../../lib/db/service';
 import { TextChunker } from '@/lib/chunker';
+import { HallucinationDetector } from '@/lib/hallucination';
 
 // Route segment config
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-const dbService = new DatabaseService();
+const dbService = DatabaseService.getInstance();
 
 // Test endpoint
 export async function GET() {
@@ -63,11 +64,13 @@ export async function POST(request: NextRequest) {
     // Extract text from document
     const extractor = new DocumentExtractor();
     const extracted = await extractor.extractText(buffer, fileExtension);
+    console.log(`Extracted text length: ${extracted.text.length} chars, ${extracted.wordCount} words`);
 
     // Calculate total chunks
     const chunker = new TextChunker();
     const chunks = chunker.chunkText(extracted.text);
     const totalChunks = chunks.length;
+    console.log(`Processing document in ${totalChunks} chunks...`);
 
     // Store document in database
     const doc = await dbService.createDocument(
@@ -81,7 +84,9 @@ export async function POST(request: NextRequest) {
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
     // Start background processing (don't await)
-    processJobInBackground(job.jobId, extracted.text, config, apiKey);
+    processJobInBackground(job.jobId, extracted.text, config, apiKey).catch(err => {
+      console.error('Failed to start background processing:', err);
+    });
 
     // Return job ID immediately
     return NextResponse.json({
@@ -103,10 +108,14 @@ async function processJobInBackground(
   config: ParaphrasingConfig,
   apiKey: string
 ) {
+  console.log(`Starting background processing for job ${jobId}`);
   try {
     const engine = new ParaphrasingEngine(apiKey);
+    const hallucinationDetector = new HallucinationDetector();
+    let paraphrasedResult = '';
     
     for await (const update of engine.paraphraseDocumentStreaming(text, config)) {
+      console.log(`Job ${jobId} update:`, update.type, update.progress);
       if (update.type === 'progress') {
         await dbService.updateJobProgress(
           jobId,
@@ -115,11 +124,26 @@ async function processJobInBackground(
           'processing'
         );
       } else if (update.type === 'complete') {
-        await dbService.completeJob(jobId, update.result!);
+        console.log(`Job ${jobId} completed, result length: ${update.result?.length}`);
+        paraphrasedResult = update.result!;
+        
+        // Calculate hallucination score
+        console.log(`Calculating hallucination score for job ${jobId}...`);
+        const hallucinationScore = await hallucinationDetector.calculateScore(text, paraphrasedResult);
+        console.log(`Hallucination score: ${hallucinationScore}`);
+        
+        await dbService.completeJob(jobId, paraphrasedResult, hallucinationScore);
+        console.log(`Job ${jobId} saved to database`);
       } else if (update.type === 'error') {
+        console.error(`Job ${jobId} error:`, update.error);
         await dbService.failJob(jobId, update.error!);
       }
     }
+    console.log(`Background processing finished for job ${jobId}`);
+    
+    // Double-check job was marked complete
+    const finalJob = await dbService.getJob(jobId);
+    console.log(`Final job status: ${finalJob?.status}`);
   } catch (error: any) {
     console.error('Background processing error:', error);
     await dbService.failJob(jobId, error.message);

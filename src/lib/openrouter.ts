@@ -37,6 +37,7 @@ export class OpenRouterService {
 
       if (!response.ok) {
         const error = await response.text();
+        console.error(`OpenRouter API error ${response.status}:`, error);
         throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
       }
 
@@ -57,12 +58,14 @@ export class OpenRouterService {
   private buildSystemPrompt(config: ParaphrasingConfig): string {
     const toneInstructions = this.getToneInstructions(config.tone);
     const formalityInstructions = this.getFormalityInstructions(config.formality);
+    const intensityInstructions = this.getIntensityInstructions(config.intensity);
     const formattingInstructions = config.preserveFormatting
       ? 'Preserve the original document structure, including paragraph breaks, lists, and formatting cues.'
       : 'You may reorganize the text for better clarity, but maintain the overall meaning.';
 
     return `You are an expert document paraphraser. Your task is to rewrite text while:
 - Maintaining the original meaning and key information
+- ${intensityInstructions}
 - ${toneInstructions}
 - ${formalityInstructions}
 - ${formattingInstructions}
@@ -111,6 +114,25 @@ Output ONLY the paraphrased text, without any preamble or explanation.`;
       case 'moderate':
       default:
         return 0.6;
+    }
+  }
+
+  private getIntensityInstructions(intensity?: number): string {
+    const level = intensity || 3; // Default to medium
+    
+    switch (level) {
+      case 1:
+        return 'Making MINIMAL changes - keep most of the original wording intact, only changing absolutely necessary words to avoid plagiarism while staying very close to the source';
+      case 2:
+        return 'Making LIGHT changes - modify sentence structures slightly and replace some vocabulary, but keep the writing style similar to the original';
+      case 3:
+        return 'Making MODERATE changes - rewrite sentences with different structures and varied vocabulary while maintaining the same meaning and tone';
+      case 4:
+        return 'Making SUBSTANTIAL changes - significantly rephrase all content with different sentence structures, alternative vocabulary, and varied expression while preserving core meaning';
+      case 5:
+        return 'Making COMPLETE rewrites - thoroughly transform the text with entirely different wording, creative sentence structures, and fresh expression while ensuring the same information is conveyed';
+      default:
+        return 'Making MODERATE changes - rewrite sentences with different structures and varied vocabulary while maintaining the same meaning and tone';
     }
   }
 }

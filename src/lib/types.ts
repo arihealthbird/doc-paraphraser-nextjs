@@ -4,6 +4,7 @@ export interface ParaphrasingConfig {
   creativity?: 'conservative' | 'moderate' | 'creative';
   preserveFormatting?: boolean;
   model?: string;
+  intensity?: number; // 1-5: 1=minimal changes, 5=complete rewrite
 }
 
 export interface ChunkMetadata {

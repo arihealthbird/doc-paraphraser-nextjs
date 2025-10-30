@@ -10,7 +10,12 @@ export const db = new Proxy({} as ReturnType<typeof drizzle>, {
       if (!process.env.DATABASE_URL) {
         throw new Error('DATABASE_URL environment variable is required');
       }
-      const sql = neon(process.env.DATABASE_URL);
+      // Configure Neon to prevent caching
+      const sql = neon(process.env.DATABASE_URL, {
+        fetchOptions: {
+          cache: 'no-store',
+        },
+      });
       _db = drizzle(sql, { schema });
     }
     return Reflect.get(_db, prop);

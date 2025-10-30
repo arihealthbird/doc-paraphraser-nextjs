@@ -28,5 +28,6 @@ export const paraphraseResults = pgTable('paraphrase_results', {
   id: serial('id').primaryKey(),
   jobId: text('job_id').notNull().unique(),
   result: text('result').notNull(),
+  hallucinationScore: integer('hallucination_score'), // 0-100, higher = more hallucination
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
