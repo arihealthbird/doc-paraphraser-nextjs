@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "src/app/api/paraphrase/route.ts": {
-      "maxDuration": 300
-    }
-  }
-}
