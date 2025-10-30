@@ -2,18 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DocumentExtractor } from '@/lib/extractor';
 import { ParaphrasingEngine } from '@/lib/engine';
 import { ParaphrasingConfig } from '@/lib/types';
+import { DatabaseService } from '../../../../lib/db/service';
+import { TextChunker } from '@/lib/chunker';
 
-export const runtime = 'nodejs';
+// Route segment config
 export const dynamic = 'force-dynamic';
-// Vercel Pro plan: 300s timeout, 50MB body size limit
+export const runtime = 'nodejs';
 export const maxDuration = 300;
+
+const dbService = new DatabaseService();
 
 // Test endpoint
 export async function GET() {
   return NextResponse.json({ 
     message: 'Paraphrase API is running',
     methods: ['POST'],
-    version: '1.0.0'
+    version: '2.0.0-db'
   });
 }
 
@@ -39,20 +43,14 @@ export async function POST(request: NextRequest) {
     console.log('File received:', file?.name, 'Size:', file?.size);
 
     if (!file) {
-      return new Response(JSON.stringify({ error: 'No file provided' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     const config: ParaphrasingConfig = configJson ? JSON.parse(configJson) : {};
     const apiKey = process.env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API key not configured' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
     // Extract file info
@@ -63,41 +61,64 @@ export async function POST(request: NextRequest) {
     const extractor = new DocumentExtractor();
     const extracted = await extractor.extractText(buffer, fileExtension);
 
-    // Create streaming response
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        const engine = new ParaphrasingEngine(apiKey);
-        
-        try {
-          for await (const update of engine.paraphraseDocumentStreaming(extracted.text, config)) {
-            const data = JSON.stringify(update) + '\n';
-            controller.enqueue(encoder.encode(data));
-          }
-        } catch (error: any) {
-          const errorUpdate = JSON.stringify({
-            type: 'error',
-            error: error.message,
-          }) + '\n';
-          controller.enqueue(encoder.encode(errorUpdate));
-        } finally {
-          controller.close();
-        }
-      },
-    });
+    // Calculate total chunks
+    const chunker = new TextChunker();
+    const chunks = chunker.chunkText(extracted.text);
+    const totalChunks = chunks.length;
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Transfer-Encoding': 'chunked',
-        'X-Content-Type-Options': 'nosniff',
-      },
+    // Store document in database
+    const doc = await dbService.createDocument(
+      file.name,
+      fileExtension,
+      file.size,
+      extracted.text
+    );
+
+    // Create job
+    const job = await dbService.createJob(doc.documentId, config, totalChunks);
+
+    // Start background processing (don't await)
+    processJobInBackground(job.jobId, extracted.text, config, apiKey);
+
+    // Return job ID immediately
+    return NextResponse.json({
+      jobId: job.jobId,
+      documentId: doc.documentId,
+      totalChunks,
+      status: 'pending',
     });
   } catch (error: any) {
     console.error('Paraphrase API error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Background processing function
+async function processJobInBackground(
+  jobId: string,
+  text: string,
+  config: ParaphrasingConfig,
+  apiKey: string
+) {
+  try {
+    const engine = new ParaphrasingEngine(apiKey);
+    
+    for await (const update of engine.paraphraseDocumentStreaming(text, config)) {
+      if (update.type === 'progress') {
+        await dbService.updateJobProgress(
+          jobId,
+          update.progress!,
+          update.currentChunk!,
+          'processing'
+        );
+      } else if (update.type === 'complete') {
+        await dbService.completeJob(jobId, update.result!);
+      } else if (update.type === 'error') {
+        await dbService.failJob(jobId, update.error!);
+      }
+    }
+  } catch (error: any) {
+    console.error('Background processing error:', error);
+    await dbService.failJob(jobId, error.message);
   }
 }

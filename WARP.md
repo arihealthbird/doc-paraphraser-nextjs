@@ -4,7 +4,7 @@ This file provides guidance to WARP (warp.dev) when working with the Next.js ver
 
 ## Project Overview
 
-Document paraphrasing service rebuilt as a Next.js 14 application using OpenRouter API. Deployable on Vercel without external dependencies (Redis/BullMQ removed).
+Document paraphrasing service rebuilt as a Next.js 14 application using OpenRouter API. Uses Neon PostgreSQL for persistent storage of documents, jobs, and results. Deployable on Vercel.
 
 ## Essential Commands
 
@@ -14,6 +14,8 @@ npm run dev          # Start Next.js dev server (http://localhost:3000)
 npm run build        # Build for production
 npm start            # Run production build
 npm run lint         # Run Next.js linter
+npm run db:push      # Push database schema to Neon
+npm run db:studio    # Open Drizzle Studio (database GUI)
 ```
 
 ### Deployment
@@ -25,54 +27,63 @@ git push origin main # Auto-deploy if connected to Vercel
 ## Architecture (Next.js Version)
 
 ### Key Changes from Express Version
-- **No Redis/BullMQ**: Replaced with streaming responses
+- **Neon PostgreSQL**: Persistent storage for documents, jobs, and results
+- **Job-based processing**: Upload returns job ID, frontend polls for status
+- **Background processing**: Jobs run async, progress tracked in database
 - **No file uploads folder**: Files processed in-memory from FormData
-- **No background workers**: Direct processing in API route with streaming
 - **Serverless-first**: Designed for Vercel's 5-minute function limit
 
 ### Request Flow
 1. **Upload** → Client sends FormData with file to `/api/paraphrase`
 2. **Extract** → Buffer converted to text via DocumentExtractor
-3. **Chunk** → TextChunker splits into 4000-char chunks
-4. **Stream** → ParaphrasingEngine yields progress updates via AsyncGenerator
-5. **Client** → Reads streaming response, updates UI in real-time
+3. **Store** → Document saved to Neon database
+4. **Create Job** → Job record created, returns jobId immediately
+5. **Background Process** → ParaphrasingEngine runs async, updates job progress in DB
+6. **Poll** → Client polls `/api/jobs/[jobId]` every 2 seconds for status
+7. **Complete** → Result stored in DB, frontend displays when status = 'completed'
 
 ### Service Layer Pattern
 
 **Core Libraries (lib/):**
 - `openrouter.ts` - Direct fetch-based API client (no OpenAI SDK dependency)
 - `engine.ts` - Streaming paraphrasing orchestrator (AsyncGenerator)
-- `chunker.ts` - Text chunking with overlap (unchanged)
+- `chunker.ts` - Text chunking with overlap
 - `extractor.ts` - Document extraction from Buffer (pdf-parse, mammoth)
+- `db/client.ts` - Neon database connection (@neondatabase/serverless)
+- `db/schema.ts` - Drizzle ORM schema (documents, jobs, results)
+- `db/service.ts` - Database operations (createDocument, createJob, etc.)
 
 **API Routes (app/api/):**
-- `/api/paraphrase/route.ts` - Main endpoint with streaming
+- `/api/paraphrase/route.ts` - Upload endpoint
   - `maxDuration: 300` (5 minutes for large docs)
-  - Returns `ReadableStream` with JSON-per-line updates
+  - Stores document and creates job
+  - Returns job ID immediately
+  - Background processing updates DB
+- `/api/jobs/[jobId]/route.ts` - Job status endpoint
+  - Returns current status, progress, and result
 - `/api/health/route.ts` - Health check
 
-### Streaming Protocol
+### Database Schema
 
-Response format (newline-delimited JSON):
-```json
-{"type":"progress","progress":25,"currentChunk":5,"totalChunks":20}
-{"type":"progress","progress":50,"currentChunk":10,"totalChunks":20}
-{"type":"complete","result":"Full paraphrased text..."}
-```
+**documents** - Stores uploaded files and extracted text
+- `document_id` (UUID), `filename`, `file_type`, `file_size`, `content`, `created_at`
 
-Error format:
-```json
-{"type":"error","error":"Error message"}
-```
+**paraphrase_jobs** - Tracks job status and progress
+- `job_id` (UUID), `document_id`, `status` (pending/processing/completed/failed)
+- `progress` (0-100), `current_chunk`, `total_chunks`, `config` (JSON), `error`, `created_at`, `updated_at`
+
+**paraphrase_results** - Stores completed results
+- `job_id` (UUID), `result` (text), `created_at`
 
 ### Frontend (app/page.tsx)
 
 Single-page React component with:
 - File upload (PDF/DOCX/TXT validation)
-- Configuration form (tone, formality, creativity)
+- Configuration form (tone, formality, creativity, AI model selection)
 - Progress bar with chunk counter
 - Result preview with download button
-- Uses `fetch` with `ReadableStream` reader for progress updates
+- Job-based polling (every 2 seconds) instead of streaming
+- Progress persists across page refreshes
 
 ## File Structure
 
@@ -102,7 +113,10 @@ nextjs-src/
 ## Environment Variables
 
 Required:
-- `OPENROUTER_API_KEY` - Must be set in Vercel dashboard or `.env.local`
+- `DATABASE_URL` - Neon PostgreSQL connection string
+- `OPENROUTER_API_KEY` - OpenRouter API key
+
+Set in `.env.local` for local dev or Vercel dashboard for production.
 
 ## Vercel Deployment
 
@@ -134,8 +148,8 @@ vercel
 - **Timeout**: 5-minute max (Vercel Pro allows 15 minutes)
 - **Memory**: 1GB default (may fail on extremely large PDFs)
 - **Output**: Always TXT format
-- **Concurrency**: No queue—each request processes independently
-- **State**: No job persistence (refresh = lost progress)
+- **Database Storage**: Large documents stored as text in database (consider Vercel Blob for files >1MB)
+- **Polling**: 2-second intervals (consider WebSockets for production)
 
 ## Prompt Engineering
 

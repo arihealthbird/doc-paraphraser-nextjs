@@ -95,7 +95,9 @@ export default function Home() {
   const [totalChunks, setTotalChunks] = useState(0);
   const [result, setResult] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [jobId, setJobId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [config, setConfig] = useState<ParaphrasingConfig>({
     tone: 'neutral',
@@ -132,14 +134,60 @@ export default function Home() {
     }
   };
 
+  const pollJobStatus = async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/jobs/${jobId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch job status');
+      }
+
+      const data = await response.json();
+      
+      setProgress(data.progress || 0);
+      setCurrentChunk(data.currentChunk || 0);
+      setTotalChunks(data.totalChunks || 0);
+
+      if (data.status === 'completed') {
+        setResult(data.result || '');
+        setProcessing(false);
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      } else if (data.status === 'failed') {
+        setError(data.error || 'Processing failed');
+        setProcessing(false);
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      }
+    } catch (err: any) {
+      console.error('Poll error:', err);
+      setError(err.message || 'Failed to check job status');
+      setProcessing(false);
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
+
+    // Clear any existing poll interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
 
     setProcessing(true);
     setProgress(0);
     setError('');
     setResult('');
+    setJobId('');
 
     try {
       const formData = new FormData();
@@ -155,45 +203,23 @@ export default function Home() {
         if (response.status === 413) {
           throw new Error('File too large for server. Maximum is 4MB due to Vercel limits.');
         }
-        throw new Error(`Failed to process document (${response.status})`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to process document (${response.status})`);
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      const data = await response.json();
+      setJobId(data.jobId);
+      setTotalChunks(data.totalChunks || 0);
 
-      if (!reader) {
-        throw new Error('No response stream');
-      }
+      // Start polling for job status
+      pollIntervalRef.current = setInterval(() => {
+        pollJobStatus(data.jobId);
+      }, 2000); // Poll every 2 seconds
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim());
-
-        for (const line of lines) {
-          try {
-            const update = JSON.parse(line);
-            
-            if (update.type === 'progress') {
-              setProgress(update.progress || 0);
-              setCurrentChunk(update.currentChunk || 0);
-              setTotalChunks(update.totalChunks || 0);
-            } else if (update.type === 'complete') {
-              setResult(update.result || '');
-              setProgress(100);
-            } else if (update.type === 'error') {
-              setError(update.error || 'Unknown error');
-            }
-          } catch (e) {
-            console.error('Failed to parse update:', line);
-          }
-        }
-      }
+      // Initial poll
+      pollJobStatus(data.jobId);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
-    } finally {
       setProcessing(false);
     }
   };
@@ -360,6 +386,9 @@ export default function Home() {
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
+              {jobId && (
+                <p className="text-xs text-gray-500 mt-2">Job ID: {jobId}</p>
+              )}
             </div>
           )}
 
