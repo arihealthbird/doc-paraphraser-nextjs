@@ -393,7 +393,7 @@ export default function Home() {
             <p className="text-center text-sm text-gray-600">
               <span className="font-semibold text-gray-900">Nick's Document System</span> © 2025
               <span className="mx-2">•</span>
-              Powered by OpenRouter AI
+              Powered by Open Insurance AI
               <span className="mx-2">•</span>
               <a href="https://github.com/arihealthbird/doc-paraphraser-nextjs" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700">
                 GitHub
