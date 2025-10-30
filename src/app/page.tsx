@@ -372,13 +372,18 @@ export default function Home() {
       formData.append('file', file);
       formData.append('config', JSON.stringify(config));
 
+      console.log('Sending request to /api/paraphrase...');
       const response = await fetch('/api/paraphrase', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('Response received:', response.status, response.statusText);
+      
       // Parse response text first to avoid double-consuming
       const responseText = await response.text();
+      console.log('Response text length:', responseText.length);
+      console.log('Response text preview:', responseText.substring(0, 200));
       
       if (!response.ok) {
         if (response.status === 413) {
@@ -399,7 +404,9 @@ export default function Home() {
       }
 
       // Parse successful response
+      console.log('Parsing response as JSON...');
       const data = JSON.parse(responseText);
+      console.log('Parsed data:', JSON.stringify(data).substring(0, 200));
       setJobId(data.jobId);
       setTotalChunks(data.totalChunks || 0);
 

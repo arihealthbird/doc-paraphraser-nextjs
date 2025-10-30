@@ -87,17 +87,21 @@ export async function POST(request: NextRequest) {
     await processJobInBackground(job.jobId, extracted.text, config, apiKey);
 
     // Get final result
+    console.log('Fetching final result from database...');
     const { result, hallucinationScore } = await dbService.getJobWithResult(job.jobId);
+    console.log('Final result fetched:', result ? `${result.length} chars` : 'null', 'score:', hallucinationScore);
 
     // Return complete result
-    return NextResponse.json({
+    const response = {
       jobId: job.jobId,
       documentId: doc.documentId,
       totalChunks,
       status: 'completed',
       result: result,
       hallucinationScore: hallucinationScore,
-    });
+    };
+    console.log('Returning response:', JSON.stringify(response).substring(0, 200));
+    return NextResponse.json(response);
   } catch (error: any) {
     console.error('Paraphrase API error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
