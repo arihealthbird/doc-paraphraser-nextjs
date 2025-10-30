@@ -107,7 +107,7 @@ export default function Home() {
   
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
 
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for Vercel Pro plan
+  const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB - Vercel infrastructure limit
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -116,7 +116,7 @@ export default function Home() {
       
       // Check file size
       if (selectedFile.size > MAX_FILE_SIZE) {
-        setError(`File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB (Vercel Pro plan limit).`);
+        setError(`File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB (Vercel platform limit). For larger files, please contact support.`);
         setFile(null);
         return;
       }
@@ -153,7 +153,7 @@ export default function Home() {
 
       if (!response.ok) {
         if (response.status === 413) {
-          throw new Error('File too large for server. Please use a smaller file (max 50MB).');
+          throw new Error('File too large for server. Maximum is 4MB due to Vercel limits.');
         }
         throw new Error(`Failed to process document (${response.status})`);
       }
