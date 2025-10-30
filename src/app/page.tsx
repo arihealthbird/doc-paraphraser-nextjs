@@ -3,6 +3,58 @@
 import { useState, useRef } from 'react';
 import { ParaphrasingConfig } from '@/lib/types';
 
+// Available AI models with descriptions
+const AI_MODELS = [
+  {
+    id: 'anthropic/claude-3.5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    description: 'Best overall quality. Most intelligent and nuanced paraphrasing.',
+    speed: 'Medium',
+    cost: '$$',
+    recommended: true,
+  },
+  {
+    id: 'anthropic/claude-3-haiku',
+    name: 'Claude 3 Haiku',
+    description: 'Fastest Claude model. Good quality with quick processing.',
+    speed: 'Fast',
+    cost: '$',
+    recommended: false,
+  },
+  {
+    id: 'openai/gpt-4o',
+    name: 'GPT-4o',
+    description: 'OpenAI\'s latest. Excellent quality and versatile.',
+    speed: 'Medium-Fast',
+    cost: '$$',
+    recommended: false,
+  },
+  {
+    id: 'openai/gpt-4o-mini',
+    name: 'GPT-4o Mini',
+    description: 'Faster and cheaper GPT-4. Great for simple documents.',
+    speed: 'Very Fast',
+    cost: '$',
+    recommended: false,
+  },
+  {
+    id: 'google/gemini-pro-1.5',
+    name: 'Gemini Pro 1.5',
+    description: 'Google\'s model. Good balance of speed and quality.',
+    speed: 'Fast',
+    cost: '$$',
+    recommended: false,
+  },
+  {
+    id: 'meta-llama/llama-3.1-70b-instruct',
+    name: 'Llama 3.1 70B',
+    description: 'Open source. Solid quality at lower cost.',
+    speed: 'Medium',
+    cost: '$',
+    recommended: false,
+  },
+];
+
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -18,7 +70,10 @@ export default function Home() {
     formality: 'medium',
     creativity: 'moderate',
     preserveFormatting: true,
+    model: AI_MODELS[0].id, // Default to Claude 3.5 Sonnet
   });
+  
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
 
   const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for Vercel Pro plan
 
@@ -152,6 +207,48 @@ export default function Home() {
                   Selected: <span className="font-medium">{file.name}</span> ({(file.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
               )}
+            </div>
+
+            {/* AI Model Selection */}
+            <div className="border-t pt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                AI Model
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {AI_MODELS.map((model) => (
+                  <button
+                    key={model.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedModel(model);
+                      setConfig({ ...config, model: model.id });
+                    }}
+                    className={`relative p-4 rounded-lg border-2 text-left transition-all ${
+                      selectedModel.id === model.id
+                        ? 'border-indigo-600 bg-indigo-50'
+                        : 'border-gray-200 hover:border-indigo-300 bg-white'
+                    }`}
+                  >
+                    {model.recommended && (
+                      <span className="absolute top-2 right-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">
+                        Recommended
+                      </span>
+                    )}
+                    <div className="font-semibold text-gray-900 mb-1">{model.name}</div>
+                    <div className="text-xs text-gray-600 mb-2">{model.description}</div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="flex items-center gap-1">
+                        <span className="text-gray-500">Speed:</span>
+                        <span className="font-medium text-gray-700">{model.speed}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="text-gray-500">Cost:</span>
+                        <span className="font-medium text-gray-700">{model.cost}</span>
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Configuration */}
