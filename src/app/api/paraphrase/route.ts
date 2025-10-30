@@ -1,12 +1,25 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { DocumentExtractor } from '@/lib/extractor';
 import { ParaphrasingEngine } from '@/lib/engine';
 import { ParaphrasingConfig } from '@/lib/types';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 // Note: Vercel Hobby plan has 10s timeout, Pro plan allows up to 300s
 // For large documents on Hobby plan, consider upgrading or processing smaller chunks
 export const maxDuration = 60; // 60s (requires Pro plan, Hobby is 10s)
+
+// Handle OPTIONS for CORS
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
