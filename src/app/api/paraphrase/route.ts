@@ -9,7 +9,6 @@ import { HallucinationDetector } from '@/lib/hallucination';
 // Route segment config
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 300;
 
 const dbService = DatabaseService.getInstance();
 
@@ -18,19 +17,7 @@ export async function GET() {
   return NextResponse.json({ 
     message: 'Paraphrase API is running',
     methods: ['POST'],
-    version: '2.0.0-db'
-  });
-}
-
-// Handle OPTIONS for CORS
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
+    version: '2.0.1-fixed'
   });
 }
 
@@ -89,7 +76,7 @@ export async function POST(request: NextRequest) {
     // Create job
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
-    // Process synchronously (Vercel serverless doesn't support true background jobs)
+    // Process synchronously
     await processJobInBackground(job.jobId, extracted.text, config, apiKey);
 
     // Get final result
@@ -98,16 +85,14 @@ export async function POST(request: NextRequest) {
     console.log('Final result fetched:', result ? `${result.length} chars` : 'null', 'score:', hallucinationScore);
 
     // Return complete result
-    const response = {
+    return NextResponse.json({
       jobId: job.jobId,
       documentId: doc.documentId,
       totalChunks,
       status: 'completed',
       result: result,
       hallucinationScore: hallucinationScore,
-    };
-    console.log('Returning response:', JSON.stringify(response).substring(0, 200));
-    return NextResponse.json(response);
+    });
   } catch (error: any) {
     console.error('Paraphrase API error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
