@@ -20,10 +20,20 @@ export default function Home() {
     preserveFormatting: true,
   });
 
+  const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB for Vercel Hobby plan
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+      
+      // Check file size
+      if (selectedFile.size > MAX_FILE_SIZE) {
+        setError(`File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB on free tier. Please upgrade to Pro for larger files.`);
+        setFile(null);
+        return;
+      }
+      
       if (ext && ['pdf', 'docx', 'txt'].includes(ext)) {
         setFile(selectedFile);
         setError('');
@@ -55,7 +65,10 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to process document');
+        if (response.status === 413) {
+          throw new Error('File too large for server. Please use a smaller file (max 4MB on free tier).');
+        }
+        throw new Error(`Failed to process document (${response.status})`);
       }
 
       const reader = response.body?.getReader();
