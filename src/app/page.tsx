@@ -215,9 +215,9 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Document Paraphraser</h1>
-          <p className="text-gray-600 mb-2">Upload a PDF, DOCX, or TXT file to paraphrase with AI</p>
-          <p className="text-sm text-indigo-600 mb-8">✨ Pro Plan: Up to 50MB files, 700+ pages supported</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Nick's Document System</h1>
+          <p className="text-gray-600 mb-2">AI-powered document paraphrasing with 10+ advanced models</p>
+          <p className="text-sm text-indigo-600 mb-8">✨ Pro Features: Up to 50MB files, 700+ pages, 5-minute processing</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* File Upload */}
@@ -387,6 +387,19 @@ export default function Home() {
               </div>
             </div>
           )}
+          
+          {/* Footer */}
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <p className="text-center text-sm text-gray-600">
+              <span className="font-semibold text-gray-900">Nick's Document System</span> © 2025
+              <span className="mx-2">•</span>
+              Powered by OpenRouter AI
+              <span className="mx-2">•</span>
+              <a href="https://github.com/arihealthbird/doc-paraphraser-nextjs" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-700">
+                GitHub
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>

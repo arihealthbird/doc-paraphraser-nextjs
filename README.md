@@ -1,6 +1,6 @@
-# Document Paraphraser - Next.js
+# Nick's Document System
 
-AI-powered document paraphrasing service built with Next.js 14, deployable on Vercel.
+Professional AI-powered document paraphrasing system with 10+ advanced models. Built with Next.js 14 and deployed on Vercel.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/arihealthbird/doc-paraphraser-nextjs)
 
