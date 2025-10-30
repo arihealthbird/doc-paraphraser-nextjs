@@ -5,8 +5,8 @@ import { ParaphrasingConfig } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Vercel Pro plan allows up to 300 seconds (5 minutes) for function execution
-export const maxDuration = 300; // 5 minutes for large documents (700+ pages)
+// Vercel Pro plan: 300s timeout, 50MB body size limit
+export const maxDuration = 300;
 
 // Handle OPTIONS for CORS
 export async function OPTIONS() {
