@@ -4,7 +4,9 @@ import { ParaphrasingEngine } from '@/lib/engine';
 import { ParaphrasingConfig } from '@/lib/types';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes for large documents
+// Note: Vercel Hobby plan has 10s timeout, Pro plan allows up to 300s
+// For large documents on Hobby plan, consider upgrading or processing smaller chunks
+export const maxDuration = 60; // 60s (requires Pro plan, Hobby is 10s)
 
 export async function POST(request: NextRequest) {
   try {
