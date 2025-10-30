@@ -5,9 +5,8 @@ import { ParaphrasingConfig } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// Note: Vercel Hobby plan has 10s timeout, Pro plan allows up to 300s
-// For large documents on Hobby plan, consider upgrading or processing smaller chunks
-export const maxDuration = 60; // 60s (requires Pro plan, Hobby is 10s)
+// Vercel Pro plan allows up to 300 seconds (5 minutes) for function execution
+export const maxDuration = 300; // 5 minutes for large documents (700+ pages)
 
 // Handle OPTIONS for CORS
 export async function OPTIONS() {

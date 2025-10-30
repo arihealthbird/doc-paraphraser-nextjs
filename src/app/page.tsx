@@ -20,7 +20,7 @@ export default function Home() {
     preserveFormatting: true,
   });
 
-  const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB for Vercel Hobby plan
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for Vercel Pro plan
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -29,7 +29,7 @@ export default function Home() {
       
       // Check file size
       if (selectedFile.size > MAX_FILE_SIZE) {
-        setError(`File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB on free tier. Please upgrade to Pro for larger files.`);
+        setError(`File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB (Vercel Pro plan limit).`);
         setFile(null);
         return;
       }
@@ -66,7 +66,7 @@ export default function Home() {
 
       if (!response.ok) {
         if (response.status === 413) {
-          throw new Error('File too large for server. Please use a smaller file (max 4MB on free tier).');
+          throw new Error('File too large for server. Please use a smaller file (max 50MB).');
         }
         throw new Error(`Failed to process document (${response.status})`);
       }
@@ -129,7 +129,8 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Document Paraphraser</h1>
-          <p className="text-gray-600 mb-8">Upload a PDF, DOCX, or TXT file to paraphrase with AI</p>
+          <p className="text-gray-600 mb-2">Upload a PDF, DOCX, or TXT file to paraphrase with AI</p>
+          <p className="text-sm text-indigo-600 mb-8">✨ Pro Plan: Up to 50MB files, 700+ pages supported</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* File Upload */}
