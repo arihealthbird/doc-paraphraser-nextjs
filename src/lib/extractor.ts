@@ -1,16 +1,20 @@
-import mammoth from 'mammoth';
+import { llamaCloud } from './llamacloud';
 import { ExtractedDocument } from './types';
-import PDFParser from 'pdf2json';
+
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
 
 export class DocumentExtractor {
-  async extractText(buffer: Buffer, fileType: string): Promise<ExtractedDocument> {
+  async extractText(buffer: Buffer, fileType: string, filename: string = 'document'): Promise<ExtractedDocument> {
     console.log(`[Extractor] Extracting ${fileType} file, buffer size: ${buffer.length}`);
     try {
       switch (fileType.toLowerCase()) {
         case 'pdf':
-          return await this.extractFromPDF(buffer);
+          return await this.extractFromPDF(buffer, filename);
         case 'docx':
-          return await this.extractFromDOCX(buffer);
+        case 'doc':
+          return await this.extractFromDOCX(buffer, filename);
         case 'txt':
           return this.extractFromTXT(buffer);
         default:
@@ -22,86 +26,40 @@ export class DocumentExtractor {
     }
   }
 
-  private async extractFromPDF(buffer: Buffer): Promise<ExtractedDocument> {
-    console.log('[Extractor] Starting PDF extraction with pdf2json');
+  private async extractFromPDF(buffer: Buffer, filename: string): Promise<ExtractedDocument> {
+    console.log('[Extractor] Starting PDF extraction with LlamaCloud');
+    const markdown = await llamaCloud.parseDocument(buffer, filename);
     
-    return new Promise((resolve, reject) => {
-      const pdfParser = new PDFParser(null, 1);
-      
-      pdfParser.on('pdfParser_dataError', (errData: any) => {
-        console.error('[Extractor] PDF parser error:', errData.parserError);
-        reject(new Error(`PDF parsing failed: ${errData.parserError}`));
-      });
-      
-      pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
-        try {
-          let fullText = '';
-          
-          // Extract text from all pages
-          if (pdfData.Pages && Array.isArray(pdfData.Pages)) {
-            for (const page of pdfData.Pages) {
-              if (page.Texts && Array.isArray(page.Texts)) {
-                for (const textItem of page.Texts) {
-                  if (textItem.R && Array.isArray(textItem.R)) {
-                    for (const run of textItem.R) {
-                      if (run.T) {
-                        // Decode URI-encoded text
-                        fullText += decodeURIComponent(run.T) + ' ';
-                      }
-                    }
-                  }
-                }
-              }
-              fullText += '\n\n';
-            }
-          }
-          
-          const text = fullText.trim();
-          const pageCount = pdfData.Pages?.length || 0;
-          
-          console.log(`[Extractor] PDF extracted: ${text.length} chars, ${pageCount} pages`);
-          
-          if (text.length === 0) {
-            reject(new Error('PDF appears to be empty or contains only images'));
-            return;
-          }
-          
-          resolve({
-            text,
-            pageCount,
-            wordCount: this.countWords(text),
-          });
-        } catch (error: any) {
-          console.error('[Extractor] Error processing PDF data:', error);
-          reject(new Error(`PDF data processing failed: ${error.message}`));
-        }
-      });
-      
-      // Parse the buffer
-      pdfParser.parseBuffer(buffer);
-    });
-  }
-
-  private async extractFromDOCX(buffer: Buffer): Promise<ExtractedDocument> {
-    const result = await mammoth.extractRawText({ buffer });
-    const text = result.value;
+    console.log(`[Extractor] PDF extracted: ${markdown.length} chars`);
     
     return {
-      text,
-      wordCount: this.countWords(text),
+      text: markdown,
+      wordCount: countWords(markdown),
+      // LlamaParse markdown endpoint doesn't include page count
+    };
+  }
+
+  private async extractFromDOCX(buffer: Buffer, filename: string): Promise<ExtractedDocument> {
+    console.log('[Extractor] Starting DOCX extraction with LlamaCloud');
+    const markdown = await llamaCloud.parseDocument(buffer, filename);
+    
+    console.log(`[Extractor] DOCX extracted: ${markdown.length} chars`);
+    
+    return {
+      text: markdown,
+      wordCount: countWords(markdown),
     };
   }
 
   private extractFromTXT(buffer: Buffer): ExtractedDocument {
+    console.log('[Extractor] Starting TXT extraction (direct buffer read)');
     const text = buffer.toString('utf-8');
+    
+    console.log(`[Extractor] TXT extracted: ${text.length} chars`);
     
     return {
       text,
-      wordCount: this.countWords(text),
+      wordCount: countWords(text),
     };
-  }
-
-  private countWords(text: string): number {
-    return text.trim().split(/\s+/).length;
   }
 }

@@ -46,12 +46,23 @@ export async function POST(request: NextRequest) {
 
     // Extract file info
     const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+    
+    // Only require LlamaCloud for PDF/DOCX
+    const needsLlama = fileExtension === 'pdf' || fileExtension === 'docx' || fileExtension === 'doc';
+    if (needsLlama && !process.env.LLAMACLOUD_API_KEY) {
+      console.error('LLAMACLOUD_API_KEY not configured for PDF/DOCX parsing');
+      return NextResponse.json(
+        { error: 'LLAMACLOUD_API_KEY is not configured for PDF/DOCX parsing. Please set LLAMACLOUD_API_KEY in your environment variables.' },
+        { status: 500 }
+      );
+    }
+    
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Extract text from document
     console.log('Creating extractor and extracting text...');
     const extractor = new DocumentExtractor();
-    const extracted = await extractor.extractText(buffer, fileExtension);
+    const extracted = await extractor.extractText(buffer, fileExtension, file.name);
     console.log(`Extracted text length: ${extracted.text.length} chars, ${extracted.wordCount} words`);
     
     if (!extracted.text || extracted.text.trim().length === 0) {

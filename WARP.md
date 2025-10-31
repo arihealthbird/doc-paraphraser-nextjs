@@ -4,7 +4,7 @@ This file provides guidance to WARP (warp.dev) when working with the Next.js ver
 
 ## Project Overview
 
-Document paraphrasing service rebuilt as a Next.js 14 application using OpenRouter API. Uses Neon PostgreSQL for persistent storage of documents, jobs, and results. Deployable on Vercel.
+Document paraphrasing service rebuilt as a Next.js 14 application using OpenRouter API for paraphrasing and LlamaCloud LlamaParse API for advanced document parsing (PDF/DOCX). Uses Neon PostgreSQL for persistent storage of documents, jobs, and results. Deployable on Vercel.
 
 ## Essential Commands
 
@@ -35,8 +35,10 @@ git push origin main # Auto-deploy if connected to Vercel
 
 ### Request Flow
 1. **Upload** → Client sends FormData with file to `/api/paraphrase`
-2. **Extract** → Buffer converted to text via DocumentExtractor
-3. **Store** → Document saved to Neon database
+2. **Extract** → Buffer converted to text via DocumentExtractor:
+   - **PDF/DOCX**: Parsed by LlamaCloud LlamaParse API (returns markdown with HTML tables)
+   - **TXT**: Direct buffer.toString('utf-8') conversion
+3. **Store** → Document saved to Neon database (markdown format for PDF/DOCX)
 4. **Create Job** → Job record created, returns jobId immediately
 5. **Background Process** → ParaphrasingEngine runs async, updates job progress in DB
 6. **Poll** → Client polls `/api/jobs/[jobId]` every 2 seconds for status
@@ -48,7 +50,8 @@ git push origin main # Auto-deploy if connected to Vercel
 - `openrouter.ts` - Direct fetch-based API client (no OpenAI SDK dependency)
 - `engine.ts` - Streaming paraphrasing orchestrator (AsyncGenerator)
 - `chunker.ts` - Text chunking with overlap
-- `extractor.ts` - Document extraction from Buffer (pdf-parse, mammoth)
+- `extractor.ts` - Document extraction from Buffer (uses LlamaCloud for PDF/DOCX)
+- `llamacloud.ts` - LlamaCloud LlamaParse API client (upload + polling)
 - `db/client.ts` - Neon database connection (@neondatabase/serverless)
 - `db/schema.ts` - Drizzle ORM schema (documents, jobs, results)
 - `db/service.ts` - Database operations (createDocument, createJob, etc.)
@@ -114,9 +117,20 @@ nextjs-src/
 
 Required:
 - `DATABASE_URL` - Neon PostgreSQL connection string
-- `OPENROUTER_API_KEY` - OpenRouter API key
+- `OPENROUTER_API_KEY` - OpenRouter API key for paraphrasing
+- `LLAMACLOUD_API_KEY` - LlamaCloud API key for PDF/DOCX parsing (not required for TXT files)
 
 Set in `.env.local` for local dev or Vercel dashboard for production.
+
+### LlamaCloud Configuration
+PDF and DOCX files are parsed using LlamaCloud's LlamaParse API with these defaults:
+- `parse_mode: "parse_page_with_agent"` (uses GPT-4-mini internally)
+- `high_res_ocr: true` (slower but more accurate for scanned documents)
+- `adaptive_long_table: true` (handles multi-page tables)
+- `outlined_table_extraction: true` (extracts table structures)
+- `output_tables_as_HTML: true` (tables preserved as HTML in markdown)
+
+Parsing takes 5-30 seconds per document depending on complexity. The system polls every 5 seconds with a 4-minute timeout.
 
 ## Vercel Deployment
 
