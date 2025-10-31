@@ -87,22 +87,19 @@ export async function POST(request: NextRequest) {
     // Create job
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
-    // Process synchronously
-    await processJobInBackground(job.jobId, extracted.text, config, apiKey);
+    // Start processing asynchronously (don't await)
+    processJobInBackground(job.jobId, extracted.text, config, apiKey).catch((err) => {
+      console.error(`Background processing failed for job ${job.jobId}:`, err);
+    });
 
-    // Get final result
-    console.log('Fetching final result from database...');
-    const { result, hallucinationScore } = await dbService.getJobWithResult(job.jobId);
-    console.log('Final result fetched:', result ? `${result.length} chars` : 'null', 'score:', hallucinationScore);
-
-    // Return complete result
+    // Return immediately with job info so frontend can poll
     return NextResponse.json({
       jobId: job.jobId,
       documentId: doc.documentId,
       totalChunks,
-      status: 'completed',
-      result: result,
-      hallucinationScore: hallucinationScore,
+      status: 'processing',
+      progress: 0,
+      currentChunk: 0,
     });
   } catch (error: any) {
     console.error('Paraphrase API error:', error);
