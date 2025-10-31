@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ParaphrasingConfig, Stage, StageStatus, inferStage } from '@/lib/types';
-import { EtherealShadow } from '@/components/ui/etheral-shadow';
+import { GradientDots } from '@/components/ui/gradient-dots';
 import ProgressIndicator from '@/components/ProgressIndicator';
 
 // Available AI models with descriptions (Latest models available on OpenRouter)
@@ -589,22 +589,15 @@ export default function Home() {
   };
 
   return (
-    <EtherealShadow
-      color="rgba(64, 61, 57, 0.6)"
-      animation={{ scale: 100, speed: 90 }}
-      noise={{ opacity: 0.4, scale: 1.2 }}
-      sizing="fill"
-      className="min-h-screen w-full"
-      style={{ backgroundColor: '#403d39' }}
-    >
-      <div className="min-h-screen py-12 px-4 flex items-center justify-center">
+    <GradientDots duration={20} className="min-h-screen w-full">
+      <div className="relative z-10 min-h-screen py-12 px-4 flex items-center justify-center">
         <div className="max-w-4xl w-full mx-auto">
           <div className={`bg-white/85 backdrop-blur-2xl rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-8 md:p-10 border-white/40 ring-1 ring-black/5 relative ${
             processing 
               ? 'border-4 animate-rainbow-border' 
               : 'border'
           }`}>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 text-center">Nick's Document System</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 text-center" style={{ fontFamily: 'Chillax, sans-serif', fontWeight: 600 }}>nick's doc/sys</h1>
             <p className="text-gray-700 text-lg mb-8 text-center">AI-powered document paraphrasing with 10+ advanced models</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -1145,6 +1138,6 @@ export default function Home() {
         </div>
       </div>
       </div>
-    </EtherealShadow>
+    </GradientDots>
   );
 }

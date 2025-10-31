@@ -13,6 +13,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=chillax@600&display=swap" />
+      </head>
       <body>{children}</body>
     </html>
   );
