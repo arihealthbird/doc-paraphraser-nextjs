@@ -9,6 +9,7 @@ import { HallucinationDetector } from '@/lib/hallucination';
 // Route segment config
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 300; // 5 minutes (Vercel Hobby limit)
 
 const dbService = DatabaseService.getInstance();
 
@@ -87,19 +88,24 @@ export async function POST(request: NextRequest) {
     // Create job
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
-    // Start processing asynchronously (don't await)
-    processJobInBackground(job.jobId, extracted.text, config, apiKey).catch((err) => {
-      console.error(`Background processing failed for job ${job.jobId}:`, err);
-    });
+    // IMPORTANT: Process synchronously within the request to keep function alive
+    // Vercel serverless functions terminate when response is sent, so we must
+    // keep the connection alive during processing
+    await processJobSynchronously(job.jobId, extracted.text, config, apiKey);
 
-    // Return immediately with job info so frontend can poll
+    // Return final status after processing completes
+    const { job: completedJob, result: resultText, hallucinationScore } = await dbService.getJobWithResult(job.jobId);
+
     return NextResponse.json({
       jobId: job.jobId,
       documentId: doc.documentId,
       totalChunks,
-      status: 'processing',
-      progress: 0,
-      currentChunk: 0,
+      status: completedJob?.status || 'failed',
+      progress: completedJob?.progress || 0,
+      currentChunk: completedJob?.currentChunk || 0,
+      result: resultText || null,
+      hallucinationScore: hallucinationScore ?? null,
+      error: completedJob?.error || null,
     });
   } catch (error: any) {
     console.error('Paraphrase API error:', error);
@@ -107,14 +113,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Background processing function
-async function processJobInBackground(
+// Synchronous processing function that runs within the request lifecycle
+async function processJobSynchronously(
   jobId: string,
   text: string,
   config: ParaphrasingConfig,
   apiKey: string
 ) {
-  console.log(`Starting background processing for job ${jobId}`);
+  console.log(`Starting synchronous processing for job ${jobId}`);
   try {
     const engine = new ParaphrasingEngine(apiKey);
     const hallucinationDetector = new HallucinationDetector();
@@ -145,13 +151,14 @@ async function processJobInBackground(
         await dbService.failJob(jobId, update.error!);
       }
     }
-    console.log(`Background processing finished for job ${jobId}`);
+    console.log(`Synchronous processing finished for job ${jobId}`);
     
     // Double-check job was marked complete
     const finalJob = await dbService.getJob(jobId);
     console.log(`Final job status: ${finalJob?.status}`);
   } catch (error: any) {
-    console.error('Background processing error:', error);
+    console.error('Synchronous processing error:', error);
     await dbService.failJob(jobId, error.message);
+    throw error; // Re-throw so caller can handle
   }
 }
