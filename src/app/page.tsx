@@ -104,6 +104,7 @@ export default function Home() {
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completionMessage, setCompletionMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -288,26 +289,114 @@ export default function Home() {
 
   const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB - Vercel infrastructure limit
 
+  // Reset all state to defaults
+  const handleReset = () => {
+    // Only confirm if there's work in progress or results
+    if (result || processing) {
+      if (!confirm('Are you sure you want to reset? This will clear all current work and settings.')) {
+        return;
+      }
+    }
+
+    // Clear file state
+    setFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+    // Clear results and processing
+    setResult('');
+    setJobId('');
+    setHallucinationScore(null);
+    setProcessing(false);
+    setProgress(0);
+    setCurrentChunk(0);
+    setTotalChunks(0);
+    setError('');
+    
+    // Reset stages
+    setStage('upload_parse');
+    setStageStatuses({
+      upload_parse: 'pending',
+      analyze_chunk: 'pending',
+      paraphrase: 'pending',
+      quality_check: 'pending',
+      finalize: 'pending',
+    });
+    setStartedAt(undefined);
+    setLastUpdateAt(undefined);
+    
+    // Clear UI state
+    setShowCompletionPopup(false);
+    setCompletionMessage('');
+    setCopied(false);
+    
+    // Reset configuration to defaults
+    setConfig({
+      tone: 'neutral',
+      formality: 'medium',
+      creativity: 'moderate',
+      preserveFormatting: true,
+      model: AI_MODELS[0].id,
+      intensity: 3,
+    });
+    setSelectedModel(AI_MODELS[0]);
+    
+    // Clear any active polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  };
+
+  const validateAndSetFile = (selectedFile: File) => {
+    const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+    
+    // Check file size
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      setError(`File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB (Vercel platform limit). For larger files, please contact support.`);
+      setFile(null);
+      return;
+    }
+    
+    if (ext && ['pdf', 'docx', 'txt'].includes(ext)) {
+      setFile(selectedFile);
+      setError('');
+      setResult('');
+    } else {
+      setError('Please select a PDF, DOCX, or TXT file');
+      setFile(null);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      const ext = selectedFile.name.split('.').pop()?.toLowerCase();
-      
-      // Check file size
-      if (selectedFile.size > MAX_FILE_SIZE) {
-        setError(`File too large. Maximum size is ${(MAX_FILE_SIZE / 1024 / 1024).toFixed(0)}MB (Vercel platform limit). For larger files, please contact support.`);
-        setFile(null);
-        return;
-      }
-      
-      if (ext && ['pdf', 'docx', 'txt'].includes(ext)) {
-        setFile(selectedFile);
-        setError('');
-        setResult('');
-      } else {
-        setError('Please select a PDF, DOCX, or TXT file');
-        setFile(null);
-      }
+      validateAndSetFile(selectedFile);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (droppedFile) {
+      validateAndSetFile(droppedFile);
     }
   };
 
@@ -597,7 +686,37 @@ export default function Home() {
               ? 'border-4 animate-rainbow-border' 
               : 'border'
           }`}>
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2 text-center" style={{ fontFamily: 'Chillax, sans-serif', fontWeight: 600 }}>nick's doc/sys</h1>
+            {/* Header with Title and Reset Button */}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex-1" />
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 text-center flex-1" style={{ fontFamily: 'Chillax, sans-serif', fontWeight: 600 }}>nick's doc/sys</h1>
+              <div className="flex-1 flex justify-end">
+                <button
+                  onClick={handleReset}
+                  className="group relative p-2.5 rounded-full hover:bg-gradient-to-br hover:from-orange-50 hover:to-amber-50 transition-all duration-200 border-2 border-transparent hover:border-orange-200 hover:shadow-md"
+                  aria-label="Reset Workbench"
+                  title="Reset Workbench"
+                >
+                  <svg 
+                    className="w-6 h-6 text-orange-500 group-hover:text-orange-600 group-hover:rotate-180 transition-all duration-300"
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                    />
+                  </svg>
+                  {/* Tooltip */}
+                  <span className="absolute -bottom-10 right-0 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none shadow-lg">
+                    Reset Workbench
+                  </span>
+                </button>
+              </div>
+            </div>
             <p className="text-gray-700 text-lg mb-8 text-center">AI-powered document paraphrasing with 10+ advanced models</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -606,7 +725,12 @@ export default function Home() {
               <label className="block text-sm font-medium text-gray-800 mb-3">
                 Select Document
               </label>
-              <div className="relative">
+              <div 
+                className="relative"
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -617,7 +741,11 @@ export default function Home() {
                 />
                 <label
                   htmlFor="file-upload"
-                  className="flex items-center justify-center w-full px-6 py-4 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-dashed border-orange-300 rounded-xl cursor-pointer hover:border-orange-400 hover:from-orange-100 hover:to-amber-100 transition-all shadow-sm hover:shadow-md"
+                  className={`flex items-center justify-center w-full px-6 py-4 border-2 border-dashed rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md ${
+                    isDragging
+                      ? 'bg-gradient-to-r from-orange-100 to-amber-100 border-orange-500 scale-[1.02]'
+                      : 'bg-gradient-to-r from-orange-50 to-amber-50 border-orange-300 hover:border-orange-400 hover:from-orange-100 hover:to-amber-100'
+                  }`}
                 >
                   <div className="text-center">
                     <svg className="mx-auto h-12 w-12 text-orange-400 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
@@ -726,21 +854,45 @@ export default function Home() {
 
                 {/* Slider Container */}
                 <div className="relative mb-8 px-2">
-                  {/* Slider Track with Dots */}
+                  {/* Slider Track with Progressive Fill */}
                   <div className="absolute top-1/2 left-2 right-2 -translate-y-1/2 pointer-events-none">
-                    <div className="h-2 bg-gradient-to-r from-orange-200 via-orange-300 to-amber-400 rounded-full shadow-inner" />
-                    {/* Position Markers */}
+                    {/* Background track */}
+                    <div className="h-2 bg-gray-200 rounded-full shadow-inner" />
+                    {/* Progressive filled track */}
+                    <div 
+                      className="absolute top-0 left-0 h-2 bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 rounded-full shadow-md transition-all duration-300"
+                      style={{ 
+                        width: `${((config.intensity || 3) - 1) * 25}%` 
+                      }}
+                    />
+                    {/* Position Markers with Color Coding */}
                     <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 flex justify-between">
-                      {[1, 2, 3, 4, 5].map((level) => (
-                        <div
-                          key={level}
-                          className={`w-5 h-5 -ml-2.5 rounded-full border-3 transition-all duration-300 ${
-                            (config.intensity || 3) === level
-                              ? 'bg-white border-orange-600 scale-125 shadow-xl'
-                              : 'bg-white border-gray-300 scale-100'
-                          }`}
-                        />
-                      ))}
+                      {[1, 2, 3, 4, 5].map((level) => {
+                        const currentIntensity = config.intensity || 3;
+                        const isSelected = currentIntensity === level;
+                        const isPassed = level < currentIntensity;
+                        const isFuture = level > currentIntensity;
+                        
+                        return (
+                          <div
+                            key={level}
+                            className={`w-6 h-6 -ml-3 rounded-full transition-all duration-300 ${
+                              isSelected
+                                ? 'scale-150 shadow-2xl border-[3px] border-orange-600 bg-gradient-to-br from-orange-400 to-amber-500'
+                                : isPassed
+                                ? 'scale-110 shadow-lg border-[3px] border-orange-400 bg-orange-200'
+                                : 'scale-100 shadow-sm border-[3px] border-gray-300 bg-white'
+                            }`}
+                          >
+                            {/* Inner dot for selected */}
+                            {isSelected && (
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rounded-full shadow-inner" />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   
