@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ParaphrasingConfig, Stage, StageStatus, inferStage } from '@/lib/types';
 import { EtherealShadow } from '@/components/ui/etheral-shadow';
 import ProgressIndicator from '@/components/ProgressIndicator';
@@ -101,6 +103,7 @@ export default function Home() {
   const [hallucinationScore, setHallucinationScore] = useState<number | null>(null);
   const [showCompletionPopup, setShowCompletionPopup] = useState(false);
   const [completionMessage, setCompletionMessage] = useState('');
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -540,6 +543,34 @@ export default function Home() {
       setError(err.message || 'Failed to download file');
     }
   };
+
+  const copyToClipboard = async () => {
+    try {
+      // Convert markdown to HTML for rich text copying
+      const { marked } = await import('marked');
+      const htmlContent = await marked(result);
+      
+      // Create a blob with both HTML and plain text formats
+      const clipboardItem = new ClipboardItem({
+        'text/html': new Blob([htmlContent], { type: 'text/html' }),
+        'text/plain': new Blob([result], { type: 'text/plain' })
+      });
+      
+      await navigator.clipboard.write([clipboardItem]);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      // Fallback to plain text if rich text copying fails
+      try {
+        await navigator.clipboard.writeText(result);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error('Fallback copy also failed:', fallbackErr);
+      }
+    }
+  };
   
   const getHallucinationAssessment = (score: number | null) => {
     if (score === null) return null;
@@ -937,12 +968,37 @@ export default function Home() {
             <div className="mt-6">
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-lg font-semibold text-gray-900">Paraphrased Result</h2>
-                <button
-                  onClick={downloadResult}
-                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all text-sm font-medium shadow-lg hover:shadow-xl"
-                >
-                  Download {file?.name.split('.').pop()?.toUpperCase() || 'File'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={copyToClipboard}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all text-sm font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
+                  >
+                    {copied ? (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Copy Text
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={downloadResult}
+                    className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all text-sm font-medium shadow-lg hover:shadow-xl flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download {file?.name.split('.').pop()?.toUpperCase() || 'File'}
+                  </button>
+                </div>
               </div>
               
               {/* Hallucination Score */}
@@ -1022,8 +1078,31 @@ export default function Home() {
                 </div>
               )}
               
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 max-h-96 overflow-y-auto">
-                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{result}</pre>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 max-h-96 overflow-y-auto">
+                <div className="prose prose-slate prose-sm max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                    // Custom styling for headings to maintain hierarchy
+                    h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-4 mb-2 text-gray-900" {...props} />,
+                    h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-3 mb-2 text-gray-800" {...props} />,
+                    h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-2 mb-1 text-gray-800" {...props} />,
+                    // Styled lists
+                    ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-2" {...props} />,
+                    ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-2" {...props} />,
+                    // Tables with borders
+                    table: ({node, ...props}) => <table className="border-collapse border border-gray-300 w-full my-4" {...props} />,
+                    th: ({node, ...props}) => <th className="border border-gray-300 px-3 py-2 bg-gray-100 font-semibold text-left" {...props} />,
+                    td: ({node, ...props}) => <td className="border border-gray-300 px-3 py-2" {...props} />,
+                    // Blockquotes
+                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic my-3 text-gray-700" {...props} />,
+                    // Code blocks
+                    code: ({node, inline, ...props}: any) => 
+                      inline ? 
+                        <code className="bg-gray-200 px-1.5 py-0.5 rounded text-sm font-mono" {...props} /> : 
+                        <code className="block bg-gray-100 p-3 rounded my-2 text-sm font-mono overflow-x-auto" {...props} />,
+                  }}>
+                    {result}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           )}

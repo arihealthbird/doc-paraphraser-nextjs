@@ -74,6 +74,16 @@ export class OpenRouterService {
 - NOT adding information that wasn't in the original text
 - NOT removing important details
 
+CRITICAL - MARKDOWN FORMATTING RULES:
+- Preserve ALL markdown syntax exactly (headings, lists, bold, italic, tables)
+- Keep heading markers (# ## ### etc.) - only paraphrase the heading TEXT
+- Maintain list formatting (- * 1. etc.) - only paraphrase the list item CONTENT
+- Preserve bold (**text**) and italic (*text*) markers around paraphrased content
+- Keep HTML tables EXACTLY as provided - do not modify table structure
+- Maintain code blocks, blockquotes, and horizontal rules
+- Your job is to rewrite CONTENT while keeping STRUCTURE intact
+- If input has markdown formatting, output MUST have identical formatting structure
+
 Output ONLY the paraphrased text, without any preamble or explanation.`;
   }
 

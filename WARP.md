@@ -172,6 +172,25 @@ Same as Express version—see `lib/openrouter.ts`:
 - Tone/formality/creativity mappings unchanged
 - Temperature: 0.3 (conservative), 0.6 (moderate), 0.9 (creative)
 
+## Markdown Formatting
+
+All documents are processed and stored as markdown:
+- **PDF/DOCX**: LlamaCloud extracts as clean markdown with HTML tables
+- **Paraphrasing**: AI explicitly instructed to preserve markdown structure while rewriting content
+- **Display**: react-markdown + remark-gfm renders with Tailwind Typography (@tailwindcss/typography)
+- **Downloads**: 
+  - PDF: Rendered with styled headings (H1: 24pt, H2: 18pt, etc.), bold/italic fonts, and bullet lists
+  - DOCX: Converted to Word styles (HeadingLevel.HEADING_1, bold TextRuns, bullet paragraphs, tables)
+  - TXT: Remains as readable markdown plaintext
+
+Dependencies: `react-markdown`, `remark-gfm`, `@tailwindcss/typography`, `marked`
+
+### Markdown Preservation Flow
+1. **Extraction**: LlamaCloud outputs markdown (headings as `#`, lists as `-`, tables as HTML)
+2. **AI Instruction**: System prompt includes CRITICAL rules to preserve all markdown syntax
+3. **Frontend**: ReactMarkdown component renders with custom styling for headings, lists, tables
+4. **Download**: marked.lexer() parses tokens → generator.ts maps to PDF/DOCX primitives
+
 ## Chunking & Overlap
 
 Same logic as Express version—see `lib/chunker.ts`:
