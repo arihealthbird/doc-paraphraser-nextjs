@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { ParaphrasingConfig } from '@/lib/types';
+import { ParaphrasingConfig, Stage, StageStatus, inferStage } from '@/lib/types';
 import { EtherealShadow } from '@/components/ui/etheral-shadow';
+import ProgressIndicator from '@/components/ProgressIndicator';
 
 // Available AI models with descriptions (Latest models available on OpenRouter)
 const AI_MODELS = [
@@ -102,6 +103,18 @@ export default function Home() {
   const [completionMessage, setCompletionMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Progress indicator state
+  const [stage, setStage] = useState<Stage>('upload_parse');
+  const [stageStatuses, setStageStatuses] = useState<Record<Stage, StageStatus>>({
+    upload_parse: 'pending',
+    analyze_chunk: 'pending',
+    paraphrase: 'pending',
+    quality_check: 'pending',
+    finalize: 'pending',
+  });
+  const [startedAt, setStartedAt] = useState<number | undefined>();
+  const [lastUpdateAt, setLastUpdateAt] = useState<number | undefined>();
 
   const funnyMessages = [
     // Classic celebrations
@@ -316,6 +329,28 @@ export default function Home() {
       setCurrentChunk(data.currentChunk || 0);
       setTotalChunks(data.totalChunks || 0);
 
+      // Update stage tracking
+      const currentStage = inferStage({
+        status: data.status,
+        progress: data.progress || 0,
+        currentChunk: data.currentChunk || 0,
+        totalChunks: data.totalChunks || 0,
+      });
+      setStage(currentStage);
+      setLastUpdateAt(Date.now());
+
+      // Update stage statuses
+      const stages: Stage[] = ['upload_parse', 'analyze_chunk', 'paraphrase', 'quality_check', 'finalize'];
+      const currentIndex = stages.indexOf(currentStage);
+      const newStatuses: Record<Stage, StageStatus> = {
+        upload_parse: currentIndex > 0 ? 'complete' : currentIndex === 0 ? 'in_progress' : 'pending',
+        analyze_chunk: currentIndex > 1 ? 'complete' : currentIndex === 1 ? 'in_progress' : 'pending',
+        paraphrase: currentIndex > 2 ? 'complete' : currentIndex === 2 ? 'in_progress' : 'pending',
+        quality_check: currentIndex > 3 ? 'complete' : currentIndex === 3 ? 'in_progress' : 'pending',
+        finalize: currentIndex === 4 ? (data.status === 'completed' ? 'complete' : 'in_progress') : 'pending',
+      };
+      setStageStatuses(newStatuses);
+
       if (data.status === 'completed') {
         console.log('Setting result:', data.result);
         setResult(data.result || '');
@@ -366,6 +401,16 @@ export default function Home() {
     setResult('');
     setJobId('');
     setHallucinationScore(null);
+    setStage('upload_parse');
+    setStageStatuses({
+      upload_parse: 'in_progress',
+      analyze_chunk: 'pending',
+      paraphrase: 'pending',
+      quality_check: 'pending',
+      finalize: 'pending',
+    });
+    setStartedAt(Date.now());
+    setLastUpdateAt(Date.now());
 
     try {
       const formData = new FormData();
@@ -840,19 +885,17 @@ export default function Home() {
           {/* Progress */}
           {processing && (
             <div className="mt-6">
-              <div className="flex justify-between text-sm text-gray-700 mb-2">
-                <span>Processing chunk {currentChunk} of {totalChunks}</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-              {jobId && (
-                <p className="text-xs text-gray-500 mt-2">Job ID: {jobId}</p>
-              )}
+              <ProgressIndicator
+                progress={progress}
+                currentChunk={currentChunk}
+                totalChunks={totalChunks}
+                currentStage={stage}
+                stageStatuses={stageStatuses}
+                processing={processing}
+                startedAt={startedAt}
+                updatedAt={lastUpdateAt}
+                modelName={AI_MODELS.find(m => m.id === config.model)?.name || 'Claude 3.5 Sonnet'}
+              />
             </div>
           )}
 
