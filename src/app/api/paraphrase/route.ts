@@ -9,7 +9,7 @@ import { HallucinationDetector } from '@/lib/hallucination';
 // Route segment config
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 900; // 15 minutes (Vercel Pro limit)
+export const maxDuration = 300; // 5 minutes - safe limit for Vercel Pro (max 800s)
 
 const dbService = DatabaseService.getInstance();
 
