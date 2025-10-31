@@ -55,8 +55,9 @@ npm install
 Create `.env.local`:
 
 ```env
-DATABASE_URL=postgresql://neondb_owner:npg_AqZ65bKglEmR@ep-spring-credit-ahcseq0d-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require
-OPENROUTER_API_KEY=your_api_key_here
+DATABASE_URL=your_neon_database_url_here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+LLAMACLOUD_API_KEY=your_llamacloud_api_key_here  # Optional: only for PDF/DOCX parsing
 ```
 
 Get your OpenRouter API key from [OpenRouter](https://openrouter.ai/).
@@ -112,11 +113,12 @@ When prompted:
 
 ### Environment Variables in Vercel
 
-In Vercel Dashboard → Settings → Environment Variables:
+In Vercel Dashboard → Settings → Environment Variables, add:
 
 ```
-DATABASE_URL = postgresql://...
-OPENROUTER_API_KEY = your_key_here
+DATABASE_URL = <your_neon_database_url>
+OPENROUTER_API_KEY = <your_openrouter_key>
+LLAMACLOUD_API_KEY = <your_llamacloud_key>  # Optional
 ```
 
 ## 🔗 API Endpoints
@@ -160,7 +162,6 @@ npm run db:studio
 
 - **[Quick Start Guide](./QUICKSTART.md)** - Get up and running in 5 minutes
 - **[Neon Integration Guide](./README-NEON.md)** - Database setup and API details
-- **[WARP Development Guide](./WARP.md)** - Architecture and development reference
 
 ## ⚠️ Limitations
 

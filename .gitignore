@@ -35,3 +35,7 @@ next-env.d.ts
 
 # drizzle
 /drizzle
+
+# warp AI assistant files
+WARP.md
+.warp/
