@@ -3,6 +3,8 @@ import { DocumentExtractor } from '@/lib/extractor';
 import { ParaphrasingConfig } from '@/lib/types';
 import { DatabaseService } from '../../../../lib/db/service';
 import { TextChunker } from '@/lib/chunker';
+import { ParaphrasingEngine } from '@/lib/engine';
+import { HallucinationDetector } from '@/lib/hallucination';
 
 // Route segment config
 export const dynamic = 'force-dynamic';
@@ -86,12 +88,12 @@ export async function POST(request: NextRequest) {
     // Create job
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
-    // Trigger worker asynchronously (fire-and-forget)
-    const workerUrl = `${request.nextUrl.origin}/api/worker`;
-    console.log(`[PARAPHRASE] Triggering worker for job ${job.jobId} at ${workerUrl}`);
+    // Trigger processing via self-invocation (keeps function alive)
+    const processingUrl = `${request.nextUrl.origin}/api/paraphrase/process`;
+    console.log(`[PARAPHRASE] Triggering processing for job ${job.jobId}`);
     
-    // Fire off worker request without awaiting
-    fetch(workerUrl, {
+    // Fire request and don't wait - let it run independently
+    fetch(processingUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -99,11 +101,13 @@ export async function POST(request: NextRequest) {
         text: extracted.text,
         config,
       }),
+    }).then(() => {
+      console.log(`[PARAPHRASE] Processing request sent for job ${job.jobId}`);
     }).catch((err) => {
-      console.error(`[PARAPHRASE] Failed to trigger worker for job ${job.jobId}:`, err);
+      console.error(`[PARAPHRASE] Failed to trigger processing for job ${job.jobId}:`, err);
     });
 
-    // Return immediately with job info
+    // Return immediately so frontend can start polling
     return NextResponse.json({
       jobId: job.jobId,
       documentId: doc.documentId,
