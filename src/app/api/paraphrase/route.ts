@@ -88,34 +88,47 @@ export async function POST(request: NextRequest) {
     // Create job
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
-    // Trigger processing via self-invocation (keeps function alive)
-    const processingUrl = `${request.nextUrl.origin}/api/paraphrase/process`;
-    console.log(`[PARAPHRASE] Triggering processing for job ${job.jobId}`);
+    console.log(`[PARAPHRASE] Starting synchronous processing for job ${job.jobId}`);
     
-    // Fire request and don't wait - let it run independently
-    fetch(processingUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    // Process synchronously - Vercel doesn't support true background jobs
+    const engine = new ParaphrasingEngine(apiKey);
+    const hallucinationDetector = new HallucinationDetector();
+    
+    try {
+      for await (const update of engine.paraphraseDocumentStreaming(extracted.text, config)) {
+        if (update.type === 'progress') {
+          await dbService.updateJobProgress(
+            job.jobId,
+            update.progress!,
+            update.currentChunk!,
+            'processing'
+          );
+        } else if (update.type === 'complete') {
+          const hallucinationScore = await hallucinationDetector.calculateScore(extracted.text, update.result!);
+          await dbService.completeJob(job.jobId, update.result!, hallucinationScore);
+        } else if (update.type === 'error') {
+          await dbService.failJob(job.jobId, update.error!);
+          return NextResponse.json({ error: update.error }, { status: 500 });
+        }
+      }
+      
+      // Return completed result
+      const { job: completedJob, result, hallucinationScore } = await dbService.getJobWithResult(job.jobId);
+      
+      return NextResponse.json({
         jobId: job.jobId,
-        text: extracted.text,
-        config,
-      }),
-    }).then(() => {
-      console.log(`[PARAPHRASE] Processing request sent for job ${job.jobId}`);
-    }).catch((err) => {
-      console.error(`[PARAPHRASE] Failed to trigger processing for job ${job.jobId}:`, err);
-    });
-
-    // Return immediately so frontend can start polling
-    return NextResponse.json({
-      jobId: job.jobId,
-      documentId: doc.documentId,
-      totalChunks,
-      status: 'processing',
-      progress: 0,
-      currentChunk: 0,
-    });
+        documentId: doc.documentId,
+        totalChunks,
+        status: 'completed',
+        progress: 100,
+        currentChunk: totalChunks,
+        result,
+        hallucinationScore,
+      });
+    } catch (error: any) {
+      await dbService.failJob(job.jobId, error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   } catch (error: any) {
     console.error('Paraphrase API error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
