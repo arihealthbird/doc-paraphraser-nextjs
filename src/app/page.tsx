@@ -559,11 +559,12 @@ export default function Home() {
 
   return (
     <EtherealShadow
-      color="rgba(194, 65, 12, 0.6)"
+      color="rgba(64, 61, 57, 0.6)"
       animation={{ scale: 100, speed: 90 }}
       noise={{ opacity: 0.4, scale: 1.2 }}
       sizing="fill"
-      className="min-h-screen w-full bg-orange-950"
+      className="min-h-screen w-full"
+      style={{ backgroundColor: '#403d39' }}
     >
       <div className="min-h-screen py-12 px-4 flex items-center justify-center">
         <div className="max-w-4xl w-full mx-auto">
