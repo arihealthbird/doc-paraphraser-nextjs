@@ -48,9 +48,9 @@ const RadialProgress = memo(({ progress, stage, eta, speed }: { progress: number
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <div className="relative flex items-center justify-center">
+    <div className="relative flex items-center justify-center w-[240px] h-[240px]">
       {/* Pulsing background glow */}
-      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-orange-200/40 to-amber-200/40 blur-2xl lux-pulse-ring" />
+      <div className="absolute inset-8 rounded-full bg-gradient-to-br from-orange-200/40 to-amber-200/40 blur-2xl lux-pulse-ring" />
       
       {/* SVG Ring */}
       <svg width="200" height="200" className="relative z-10">
@@ -89,23 +89,23 @@ const RadialProgress = memo(({ progress, stage, eta, speed }: { progress: number
       </svg>
       
       {/* Center content */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
         <motion.div
           key={progress}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="text-5xl font-black bg-gradient-to-br from-orange-600 to-amber-600 bg-clip-text text-transparent"
+          className="text-4xl font-black bg-gradient-to-br from-orange-600 to-amber-600 bg-clip-text text-transparent leading-none"
         >
           {Math.round(progress)}%
         </motion.div>
-        <div className="text-xs font-medium text-gray-600 mt-1 max-w-[140px] leading-tight">
+        <div className="text-xs font-semibold text-gray-700 mt-2 max-w-[120px] leading-tight">
           {stage}
         </div>
         {(eta || speed) && (
-          <div className="text-xs text-gray-500 mt-2 space-y-0.5">
-            {speed && <div className="font-medium">{speed}</div>}
-            {eta && <div>{eta}</div>}
+          <div className="text-[10px] text-gray-500 mt-2 space-y-0.5 max-w-[130px]">
+            {speed && <div className="font-medium truncate">{speed}</div>}
+            {eta && <div className="truncate">{eta}</div>}
           </div>
         )}
       </div>
@@ -229,33 +229,41 @@ const ChunkCard = memo(({
     <motion.div
       ref={ref}
       initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: Math.min(index * 0.02, 0.5) }}
-      className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all ${
+      animate={{ 
+        opacity: 1, 
+        scale: status === 'processing' ? 1.05 : 1 
+      }}
+      transition={{ 
+        delay: Math.min(index * 0.02, 0.5),
+        scale: { duration: 0.3 }
+      }}
+      className={`relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 flex items-center justify-center font-bold text-sm transition-all overflow-hidden ${
         status === 'completed'
           ? 'border-green-400 bg-green-50 text-green-700 shadow-md'
           : status === 'processing'
-          ? 'border-orange-400 bg-gradient-to-br from-orange-50 to-amber-50 text-orange-700 shadow-lg scale-110 animate-rainbow-border'
+          ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-amber-50 text-orange-700 shadow-lg'
           : 'border-gray-200 bg-gray-50 text-gray-400'
       }`}
     >
+      {/* Processing pulse animation */}
+      {status === 'processing' && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-br from-orange-400/20 to-amber-400/20"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.5, 0.8, 0.5],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
+      )}
+      
       <span className="relative z-10">
         {status === 'completed' ? '✓' : index + 1}
       </span>
-      
-      {/* Processing spinner */}
-      {status === 'processing' && (
-        <div className="absolute inset-0 rounded-xl overflow-hidden">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-            className="absolute inset-[-2px] rounded-xl"
-            style={{
-              background: 'conic-gradient(from 0deg, transparent, #f97316, transparent)',
-            }}
-          />
-        </div>
-      )}
     </motion.div>
   );
 });
