@@ -336,6 +336,7 @@ export default function Home() {
         currentChunk: data.currentChunk || 0,
         totalChunks: data.totalChunks || 0,
       });
+      console.log('Stage transition:', currentStage, '| progress:', data.progress, '| chunk:', data.currentChunk, '/', data.totalChunks, '| status:', data.status);
       setStage(currentStage);
       setLastUpdateAt(Date.now());
 
@@ -454,6 +455,30 @@ export default function Home() {
       console.log('Parsed data:', JSON.stringify(data).substring(0, 200));
       setJobId(data.jobId);
       setTotalChunks(data.totalChunks || 0);
+
+      // Update stage immediately after getting initial response
+      if (data.totalChunks > 0) {
+        const initialStage = inferStage({
+          status: data.status || 'processing',
+          progress: data.progress || 0,
+          currentChunk: data.currentChunk || 0,
+          totalChunks: data.totalChunks || 0,
+        });
+        console.log('Initial stage after upload:', initialStage, { progress: data.progress, currentChunk: data.currentChunk, totalChunks: data.totalChunks });
+        setStage(initialStage);
+        
+        // Update stage statuses based on initial stage
+        const stages: Stage[] = ['upload_parse', 'analyze_chunk', 'paraphrase', 'quality_check', 'finalize'];
+        const currentIndex = stages.indexOf(initialStage);
+        const newStatuses: Record<Stage, StageStatus> = {
+          upload_parse: currentIndex > 0 ? 'complete' : currentIndex === 0 ? 'in_progress' : 'pending',
+          analyze_chunk: currentIndex > 1 ? 'complete' : currentIndex === 1 ? 'in_progress' : 'pending',
+          paraphrase: currentIndex > 2 ? 'complete' : currentIndex === 2 ? 'in_progress' : 'pending',
+          quality_check: currentIndex > 3 ? 'complete' : currentIndex === 3 ? 'in_progress' : 'pending',
+          finalize: currentIndex === 4 ? (data.status === 'completed' ? 'complete' : 'in_progress') : 'pending',
+        };
+        setStageStatuses(newStatuses);
+      }
 
       // Response now contains the complete result (synchronous processing)
       if (data.status === 'completed') {

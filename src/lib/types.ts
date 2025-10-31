@@ -54,9 +54,24 @@ export function inferStage(job: {
   currentChunk: number;
   totalChunks: number;
 }): Stage {
-  if (job.status === 'completed' || job.progress >= 99) return 'finalize';
-  if (job.currentChunk >= job.totalChunks && job.totalChunks > 0) return 'quality_check';
-  if (job.currentChunk > 0) return 'paraphrase';
-  if (job.totalChunks > 0) return 'analyze_chunk';
+  // Completed
+  if (job.status === 'completed') return 'finalize';
+  
+  // Quality check phase (all chunks done, finalizing)
+  if (job.progress >= 95 && job.currentChunk === job.totalChunks && job.totalChunks > 0) {
+    return 'quality_check';
+  }
+  
+  // Paraphrasing phase (actively processing chunks)
+  if (job.currentChunk > 0 && job.currentChunk <= job.totalChunks) {
+    return 'paraphrase';
+  }
+  
+  // Analysis/chunking phase (totalChunks set but no chunks processed yet)
+  if (job.totalChunks > 0 && job.currentChunk === 0) {
+    return 'analyze_chunk';
+  }
+  
+  // Upload/parsing phase (initial state)
   return 'upload_parse';
 }
