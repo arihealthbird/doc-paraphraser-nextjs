@@ -9,7 +9,7 @@ import { HallucinationDetector } from '@/lib/hallucination';
 // Route segment config
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes (Vercel Hobby limit)
+export const maxDuration = 900; // 15 minutes (Vercel Pro limit)
 
 const dbService = DatabaseService.getInstance();
 
@@ -88,12 +88,13 @@ export async function POST(request: NextRequest) {
     // Create job
     const job = await dbService.createJob(doc.documentId, config, totalChunks);
 
-    // IMPORTANT: Process synchronously within the request to keep function alive
-    // Vercel serverless functions terminate when response is sent, so we must
-    // keep the connection alive during processing
-    await processJobSynchronously(job.jobId, extracted.text, config, apiKey);
+    // Process synchronously - we MUST await to keep function alive
+    // Vercel Pro allows 15 minutes, which should be enough
+    console.log(`[PARAPHRASE] Starting processing for job ${job.jobId}`);
+    await processJobAsync(job.jobId, extracted.text, config, apiKey);
+    console.log(`[PARAPHRASE] Processing complete for job ${job.jobId}`);
 
-    // Return final status after processing completes
+    // Fetch final result
     const { job: completedJob, result: resultText, hallucinationScore } = await dbService.getJobWithResult(job.jobId);
 
     return NextResponse.json({
@@ -101,8 +102,8 @@ export async function POST(request: NextRequest) {
       documentId: doc.documentId,
       totalChunks,
       status: completedJob?.status || 'failed',
-      progress: completedJob?.progress || 0,
-      currentChunk: completedJob?.currentChunk || 0,
+      progress: completedJob?.progress || 100,
+      currentChunk: completedJob?.currentChunk || totalChunks,
       result: resultText || null,
       hallucinationScore: hallucinationScore ?? null,
       error: completedJob?.error || null,
@@ -113,14 +114,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Synchronous processing function that runs within the request lifecycle
-async function processJobSynchronously(
+// Async processing function that runs in background
+async function processJobAsync(
   jobId: string,
   text: string,
   config: ParaphrasingConfig,
   apiKey: string
 ) {
-  console.log(`Starting synchronous processing for job ${jobId}`);
+  console.log(`Starting async processing for job ${jobId}`);
   try {
     const engine = new ParaphrasingEngine(apiKey);
     const hallucinationDetector = new HallucinationDetector();
@@ -151,14 +152,13 @@ async function processJobSynchronously(
         await dbService.failJob(jobId, update.error!);
       }
     }
-    console.log(`Synchronous processing finished for job ${jobId}`);
+    console.log(`Async processing finished for job ${jobId}`);
     
     // Double-check job was marked complete
     const finalJob = await dbService.getJob(jobId);
     console.log(`Final job status: ${finalJob?.status}`);
   } catch (error: any) {
-    console.error('Synchronous processing error:', error);
+    console.error('Async processing error:', error);
     await dbService.failJob(jobId, error.message);
-    throw error; // Re-throw so caller can handle
   }
 }
